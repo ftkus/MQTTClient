@@ -5,6 +5,8 @@ VisualStudioVersion = 16.0.30413.136
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MQTTClient", "MQTTClient\MQTTClient.csproj", "{C9E110DE-803A-4D07-AB2A-7896884D71C0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MQTTClientListener", "MQTTClientListener\MQTTClientListener.csproj", "{F41592FB-420A-41AC-B0F6-755019728E14}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{C9E110DE-803A-4D07-AB2A-7896884D71C0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C9E110DE-803A-4D07-AB2A-7896884D71C0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C9E110DE-803A-4D07-AB2A-7896884D71C0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F41592FB-420A-41AC-B0F6-755019728E14}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F41592FB-420A-41AC-B0F6-755019728E14}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F41592FB-420A-41AC-B0F6-755019728E14}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F41592FB-420A-41AC-B0F6-755019728E14}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -369,12 +369,12 @@ namespace MQTTClient
 
         private void Client_OnSubscriberConnected(MqttClientConnectedEventArgs e)
         {
-           log.Add("Subscriber Connected");
+           log.Add($"{ClientName} Connected");
         }
 
         private void Client_OnSubscriberDisconnected(MqttClientDisconnectedEventArgs e)
         {
-            log.Add("Subscriber Disconnected");
+            log.Add($"{ClientName} Disconnected");
         }
 
         private void Client_OnSubscriberMessageReceived(MqttApplicationMessageReceivedEventArgs e)
@@ -388,27 +388,16 @@ namespace MQTTClient
 
         private void Client_OnPublisherConnected(MqttClientConnectedEventArgs e)
         {
-            log.Add("Publisher Connected");
+            log.Add($"{ClientName} Connected");
         }
 
         private void Client_OnPublisherDisconnected(MqttClientDisconnectedEventArgs e)
         {
-            log.Add("Publisher Disconnected");
+            log.Add($"{ClientName} Disconnected");
         }
 
         private void Client_HandleReceivedApplicationMessage(MqttApplicationMessageReceivedEventArgs e)
         {
-            var topic = e.ApplicationMessage.Topic;
-            var payload = e.ApplicationMessage.ConvertPayloadToString();
-
-            foreach (var vm in ClientSubscriberViewModels)
-            {
-                if (vm.Topic == topic)
-                {
-                    vm.Message = payload;
-                }
-            }
-
             var item = $"Timestamp: {DateTime.Now:O} | Topic: {e.ApplicationMessage.Topic} | Payload: {e.ApplicationMessage.ConvertPayloadToString()} | QoS: {e.ApplicationMessage.QualityOfServiceLevel}";
 
             log.Add(item);

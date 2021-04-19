@@ -72,7 +72,9 @@
                 
                 <TextBox Grid.Row="0"
                          Grid.Column="1"
-                         Text="{Binding Server}"/>
+                         Text="{Binding Server}"
+                         IsEnabled="{Binding IsConnected, Converter={StaticResource boolInverterValueConverter}}"/>
+
 
                 <TextBlock Grid.Row="1"
                            Grid.Column="0"
@@ -80,7 +82,9 @@
 
                 <TextBox Grid.Row="1"
                          Grid.Column="1"
-                         Text="{Binding Port}"/>
+                         Text="{Binding Port}"
+                         IsEnabled="{Binding IsConnected, Converter={StaticResource boolInverterValueConverter}}"/>
+
 
                 <StackPanel Grid.Row="2"
                             Grid.Column="0"

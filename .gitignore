@@ -1,0 +1,13 @@
+# Compilation folders
+/**/bin/
+/**/obj/
+
+# Temporary files and user preferences
+.vs
+*.Caches
+
+# Temporary files
+*.suo
+.~*
+.#*
+\#*

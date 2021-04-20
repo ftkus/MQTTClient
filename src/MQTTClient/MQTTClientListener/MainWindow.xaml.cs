@@ -10,6 +10,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Management;
 using System.Text;
@@ -268,8 +269,6 @@ namespace MQTTClientListener
 
         private async void Disconnect_Click(object sender, RoutedEventArgs e)
         {
-            Messages.Clear();
-
             await client?.StopAsync();
 
             client = null;
@@ -302,5 +301,38 @@ namespace MQTTClientListener
             Dispatcher.Invoke(() => Messages.Add(item));
         }
 
+        private void MiCopy_OnClick(object sender, RoutedEventArgs e)
+        {
+            var msgs = Messages.ToArray();
+
+            if (!msgs.Any())
+            {
+                return;
+            }
+
+            using (StringWriter sw = new StringWriter())
+            {
+                foreach (var msg in msgs)
+                {
+                    sw.WriteLine(msg);
+                }
+
+                try
+                {
+                    Clipboard.Clear();
+                    Clipboard.SetText(sw.ToString().Trim());
+                }
+                catch (Exception)
+                {
+                    //Clipboard exception
+                    //Do nothing
+                }
+            }
+        }
+
+        private void MiClear_OnClick(object sender, RoutedEventArgs e)
+        {
+            Messages.Clear();
+        }
     }
 }

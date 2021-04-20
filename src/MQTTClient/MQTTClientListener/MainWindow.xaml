@@ -116,7 +116,17 @@
 
         <ListBox Grid.Row="2"
                  Grid.Column="0"
-                 ItemsSource="{Binding Messages}"/>
+                 ItemsSource="{Binding Messages}">
+            <ListBox.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Copy"
+                              Click="MiCopy_OnClick"/>
+
+                    <MenuItem Header="Clear"
+                              Click="MiClear_OnClick"/>
+                </ContextMenu>
+            </ListBox.ContextMenu>
+        </ListBox>
 
     </Grid>
 </Window>

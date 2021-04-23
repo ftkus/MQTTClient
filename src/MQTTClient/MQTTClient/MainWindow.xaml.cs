@@ -14,7 +14,6 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
-using System.Threading.Tasks;
 using MQTTnet;
 using MQTTnet.Client.Connecting;
 using MQTTnet.Client.Disconnecting;
@@ -28,6 +27,8 @@ using MQTTnet.Server;
 using System.Management;
 using System.Collections.ObjectModel;
 using System.Timers;
+
+using System.Security.Cryptography.X509Certificates;
 
 namespace MQTTClient
 {
@@ -267,20 +268,33 @@ namespace MQTTClient
             IsConnected = false;
         }
 
+        private List<X509Certificate> GetCerts()
+        {
+            List<X509Certificate> certs = new List<X509Certificate>
+            {
+                new X509Certificate2("C:\\ca.crt"),
+            };
+
+            return certs;
+        }
+
         private async Task<IManagedMqttClient> StartClientPublisher(MqttFactory factory, string server, int port, string name)
         {
+            var certs = GetCerts();
+
             var tlsOptions = new MqttClientTlsOptions
             {
-                UseTls = false,
+                UseTls = true,
                 IgnoreCertificateChainErrors = true,
                 IgnoreCertificateRevocationErrors = true,
-                AllowUntrustedCertificates = true
+                AllowUntrustedCertificates = true,
+                Certificates = certs,
             };
 
             var options = new MqttClientOptions
             {
                 ClientId = $"{name}.pub",
-                ProtocolVersion = MqttProtocolVersion.V311,
+                ProtocolVersion = MqttProtocolVersion.V500,
                 ChannelOptions = new MqttClientTcpOptions
                 {
                     Server = server,
@@ -319,18 +333,21 @@ namespace MQTTClient
 
         private async Task<IManagedMqttClient> StartClientSubscriber(MqttFactory factory, string server, int port, string name)
         {
+            var certs = GetCerts();
+
             var tlsOptions = new MqttClientTlsOptions
             {
-                UseTls = false,
+                UseTls = true,
                 IgnoreCertificateChainErrors = true,
                 IgnoreCertificateRevocationErrors = true,
-                AllowUntrustedCertificates = true
+                AllowUntrustedCertificates = true,
+                Certificates = certs,
             };
 
             var options = new MqttClientOptions
             {
                 ClientId = $"{name}.sub",
-                ProtocolVersion = MqttProtocolVersion.V311,
+                ProtocolVersion = MqttProtocolVersion.V500,
                 ChannelOptions = new MqttClientTcpOptions
                 {
                     Server = server,

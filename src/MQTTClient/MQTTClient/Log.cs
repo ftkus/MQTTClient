@@ -25,7 +25,10 @@ namespace MQTTClient
 
         internal void Add(string message)
         {
-            log.Add(message);
+            lock (log)
+            {
+                log.Add(message);
+            }
 
             Updated?.Invoke(this, new LogEventArgs(this));
         }
@@ -34,7 +37,14 @@ namespace MQTTClient
         {
             using (StringWriter sw = new StringWriter())
             {
-                foreach (var l in log)
+                string[] logArray;
+
+                lock (log)
+                {
+                    logArray = log.ToArray();
+                }
+
+                foreach (var l in logArray)
                 {
                     sw.WriteLine(l);
                 }

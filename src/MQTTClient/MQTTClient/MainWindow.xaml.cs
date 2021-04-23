@@ -155,6 +155,10 @@ namespace MQTTClient
             }
         }
 
+        public string ClientSub => $"{ClientName}.sub";
+
+        public string ClientPub => $"{ClientName}.pub";
+
         public ObservableCollection<ClientPublisherViewModel> ClientPublisherViewModels
         {
             get => clientPublisherViewModels;
@@ -247,8 +251,8 @@ namespace MQTTClient
         {
             var mqttFactory = new MqttFactory();
 
-            clientSubscriber = StartClientSubscriber(mqttFactory, Server, Port, ClientName).Result;
-            clientPublisher = StartClientPublisher(mqttFactory, Server, Port, ClientName).Result;
+            clientSubscriber = StartClientSubscriber(mqttFactory, Server, Port).Result;
+            clientPublisher = StartClientPublisher(mqttFactory, Server, Port).Result;
 
             IsConnected = true;
 
@@ -268,33 +272,20 @@ namespace MQTTClient
             IsConnected = false;
         }
 
-        private List<X509Certificate> GetCerts()
+        private async Task<IManagedMqttClient> StartClientPublisher(MqttFactory factory, string server, int port)
         {
-            List<X509Certificate> certs = new List<X509Certificate>
-            {
-                new X509Certificate2("C:\\ca.crt"),
-            };
-
-            return certs;
-        }
-
-        private async Task<IManagedMqttClient> StartClientPublisher(MqttFactory factory, string server, int port, string name)
-        {
-            var certs = GetCerts();
-
             var tlsOptions = new MqttClientTlsOptions
             {
-                UseTls = true,
+                UseTls = false,
                 IgnoreCertificateChainErrors = true,
                 IgnoreCertificateRevocationErrors = true,
                 AllowUntrustedCertificates = true,
-                Certificates = certs,
             };
 
             var options = new MqttClientOptions
             {
-                ClientId = $"{name}.pub",
-                ProtocolVersion = MqttProtocolVersion.V500,
+                ClientId = ClientPub,
+                ProtocolVersion = MqttProtocolVersion.V311,
                 ChannelOptions = new MqttClientTcpOptions
                 {
                     Server = server,
@@ -331,23 +322,20 @@ namespace MQTTClient
             return managedMqttClientPublisher;
         }
 
-        private async Task<IManagedMqttClient> StartClientSubscriber(MqttFactory factory, string server, int port, string name)
+        private async Task<IManagedMqttClient> StartClientSubscriber(MqttFactory factory, string server, int port)
         {
-            var certs = GetCerts();
-
             var tlsOptions = new MqttClientTlsOptions
             {
-                UseTls = true,
+                UseTls = false,
                 IgnoreCertificateChainErrors = true,
                 IgnoreCertificateRevocationErrors = true,
                 AllowUntrustedCertificates = true,
-                Certificates = certs,
             };
 
             var options = new MqttClientOptions
             {
-                ClientId = $"{name}.sub",
-                ProtocolVersion = MqttProtocolVersion.V500,
+                ClientId = ClientSub,
+                ProtocolVersion = MqttProtocolVersion.V311,
                 ChannelOptions = new MqttClientTcpOptions
                 {
                     Server = server,
@@ -386,12 +374,12 @@ namespace MQTTClient
 
         private void Client_OnSubscriberConnected(MqttClientConnectedEventArgs e)
         {
-           log.Add($"{ClientName} Connected");
+           log.Add($"{ClientSub} Connected");
         }
 
         private void Client_OnSubscriberDisconnected(MqttClientDisconnectedEventArgs e)
         {
-            log.Add($"{ClientName} Disconnected");
+            log.Add($"{ClientSub} Disconnected");
         }
 
         private void Client_OnSubscriberMessageReceived(MqttApplicationMessageReceivedEventArgs e)
@@ -405,12 +393,12 @@ namespace MQTTClient
 
         private void Client_OnPublisherConnected(MqttClientConnectedEventArgs e)
         {
-            log.Add($"{ClientName} Connected");
+            log.Add($"{ClientPub} Connected");
         }
 
         private void Client_OnPublisherDisconnected(MqttClientDisconnectedEventArgs e)
         {
-            log.Add($"{ClientName} Disconnected");
+            log.Add($"{ClientPub} Disconnected");
         }
 
         private void Client_HandleReceivedApplicationMessage(MqttApplicationMessageReceivedEventArgs e)

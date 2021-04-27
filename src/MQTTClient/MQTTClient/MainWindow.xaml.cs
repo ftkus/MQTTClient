@@ -45,6 +45,16 @@ namespace MQTTClient
 
         private int port;
 
+        private bool useTls;
+
+        private bool useAuth;
+
+        private string username;
+
+        private string password;
+
+        private string certPath;
+
         private IManagedMqttClient clientSubscriber;
         private IManagedMqttClient clientPublisher;
 
@@ -152,6 +162,86 @@ namespace MQTTClient
                 isConnected = value;
 
                 NotifyPropertyChanged(nameof(IsConnected));
+            }
+        }
+
+        public bool UseTls
+        {
+            get
+            {
+                return useTls;
+            }
+            set
+            {
+                if (Equals(useTls, value)) { return; }
+
+                useTls = value;
+
+                NotifyPropertyChanged(nameof(UseTls));
+            }
+        }
+
+        public bool UseAuth
+        {
+            get
+            {
+                return useAuth;
+            }
+            set
+            {
+                if (Equals(useAuth, value)) { return; }
+
+                useAuth = value;
+
+                NotifyPropertyChanged(nameof(UseAuth));
+            }
+        }
+
+        public string Username
+        { 
+            get
+            {
+                return username;
+            }
+            set
+            {
+                if (Equals(username, value)) { return; }
+
+                username = value;
+
+                NotifyPropertyChanged(nameof(Username));
+            }
+        }
+
+        public string Password
+        {
+            get
+            {
+                return password;
+            }
+            set
+            {
+                if (Equals(password, value)) { return; }
+
+                password = value;
+
+                NotifyPropertyChanged(nameof(Password));
+            }
+        }
+
+        public string CertPath
+        {
+            get
+            {
+                return certPath;
+            }
+            set
+            {
+                if (Equals(certPath, value)) { return; }
+
+                certPath = value;
+
+                NotifyPropertyChanged(nameof(CertPath));
             }
         }
 

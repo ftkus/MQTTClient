@@ -109,11 +109,11 @@
 
                     <Button Content="Connect"
                             IsEnabled="{Binding IsConnected, Converter={StaticResource boolInverterValueConverter}}"
-                            Click="butConnect_OnClick"/>
+                            Click="ButConnect_OnClick"/>
 
                     <Button Content="Disconnect"
                             IsEnabled="{Binding IsConnected}"
-                            Click="butDisconnect_OnClick"/>
+                            Click="ButDisconnect_OnClick"/>
 
                 </StackPanel>
                 
@@ -148,7 +148,8 @@
                 <Button Grid.Row="0"
                         Grid.Column="2"
                          IsEnabled="{Binding UseTls}"
-                        Content="Browse"/>
+                        Content="Browse"
+                        Click="ButBrowseCert_Click"/>
 
                 <CheckBox Grid.Row="1"
                           Grid.Column="0"
@@ -179,7 +180,8 @@
                                Grid.Column="0"
                                Text="Password"/>
                     <PasswordBox Grid.Row="1"
-                                 Grid.Column="1"/>
+                                 Grid.Column="1"
+                                 x:Name="pwBox"/>
 
                 </Grid>
 

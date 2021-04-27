@@ -51,8 +51,6 @@ namespace MQTTClient
 
         private string username;
 
-        private string password;
-
         private string certPath;
 
         private IManagedMqttClient clientSubscriber;
@@ -213,22 +211,6 @@ namespace MQTTClient
             }
         }
 
-        public string Password
-        {
-            get
-            {
-                return password;
-            }
-            set
-            {
-                if (Equals(password, value)) { return; }
-
-                password = value;
-
-                NotifyPropertyChanged(nameof(Password));
-            }
-        }
-
         public string CertPath
         {
             get
@@ -300,7 +282,7 @@ namespace MQTTClient
         {
             List<X509Certificate> certs = new List<X509Certificate>
             {
-                new X509Certificate2("C:\\ca.crt"),
+                new X509Certificate2(CertPath),
             };
 
             return certs;
@@ -347,7 +329,7 @@ namespace MQTTClient
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        private void butConnect_OnClick(object sender, RoutedEventArgs e)
+        private void ButConnect_OnClick(object sender, RoutedEventArgs e)
         {
             var mqttFactory = new MqttFactory();
 
@@ -361,7 +343,7 @@ namespace MQTTClient
             Properties.Settings.Default.Save();
         }
 
-        private async void butDisconnect_OnClick(object sender, RoutedEventArgs e)
+        private async void ButDisconnect_OnClick(object sender, RoutedEventArgs e)
         {
             await clientSubscriber?.StopAsync();
             await clientPublisher?.StopAsync();
@@ -376,7 +358,7 @@ namespace MQTTClient
         {
             var tlsOptions = new MqttClientTlsOptions
             {
-                UseTls = false,
+                UseTls = this.UseTls,
                 IgnoreCertificateChainErrors = true,
                 IgnoreCertificateRevocationErrors = true,
                 AllowUntrustedCertificates = true,
@@ -401,8 +383,8 @@ namespace MQTTClient
 
             options.Credentials = new MqttClientCredentials
             {
-                Username = "username",
-                Password = Encoding.UTF8.GetBytes("password")
+                Username = UseAuth ? Username : "username",
+                Password = UseAuth ? Encoding.UTF8.GetBytes(pwBox.Password) : Encoding.UTF8.GetBytes("password")
             };
 
             options.CleanSession = true;
@@ -554,6 +536,11 @@ namespace MQTTClient
             {
                 clientSubscriber.SubscribeAsync(e.NewTopic);
             }
+        }
+
+        private void ButBrowseCert_Click(object sender, RoutedEventArgs e)
+        {
+
         }
     }
 }

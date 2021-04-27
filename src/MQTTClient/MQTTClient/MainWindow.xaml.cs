@@ -206,6 +206,16 @@ namespace MQTTClient
             return cpuInfo;
         }
 
+        private List<X509Certificate> GetCerts()
+        {
+            List<X509Certificate> certs = new List<X509Certificate>
+            {
+                new X509Certificate2("C:\\ca.crt"),
+            };
+
+            return certs;
+        }
+
         private void UpdateTopic(string topic, string paylod)
         {
             foreach (var vm in ClientSubscriberViewModels)

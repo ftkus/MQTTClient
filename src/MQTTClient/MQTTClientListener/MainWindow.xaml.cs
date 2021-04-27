@@ -32,19 +32,6 @@ namespace MQTTClientListener
     /// </summary>
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
-        public class EncodingViewModel
-        {
-            public EncodingViewModel(Encoding encoding)
-            {
-                Value = encoding;
-                Name = encoding.EncodingName;
-            }
-
-            public string Name { get; }
-
-            internal Encoding Value { get; }
-        }
-
         private IManagedMqttClient client;
         private IManagedMqttClient clientPublisher;
 
@@ -58,26 +45,12 @@ namespace MQTTClientListener
 
         private ObservableCollection<string> messages;
 
-        private ObservableCollection<EncodingViewModel> encodings;
-
-        private EncodingViewModel selectedEncoding;
-
-
         public MainWindow()
         {
             Port = Properties.Settings.Default.Port;
             Server = Properties.Settings.Default.Server;
 
             Messages = new ObservableCollection<string>();
-
-            Encodings = new ObservableCollection<EncodingViewModel>();
-
-            foreach (var enc in Encoding.GetEncodings())
-            {
-                Encodings.Add(new EncodingViewModel(enc.GetEncoding()));
-            }
-
-            SelectedEncoding = Encodings.Any() ? Encodings.First() : null;
 
             clientName = GetClientName();
 
@@ -145,38 +118,6 @@ namespace MQTTClientListener
                 messages = value;
 
                 NotifyPropertyChanged(nameof(Messages));
-            }
-        }
-
-        public ObservableCollection<EncodingViewModel> Encodings
-        {
-            get { return encodings; }
-            set
-            {
-                if (Equals(encodings, value))
-                {
-                    return;
-                }
-
-                encodings = value;
-
-                NotifyPropertyChanged(nameof(Encodings));
-            }
-        }
-
-        public EncodingViewModel SelectedEncoding
-        {
-            get { return selectedEncoding; }
-            set
-            {
-                if (Equals(selectedEncoding, value))
-                {
-                    return;
-                }
-
-                selectedEncoding = value;
-
-                NotifyPropertyChanged(nameof(SelectedEncoding));
             }
         }
 
@@ -289,14 +230,7 @@ namespace MQTTClientListener
 
         private void Client_OnSubscriberMessageReceived(MqttApplicationMessageReceivedEventArgs e)
         {
-            string decodedPayload = e.ApplicationMessage.ConvertPayloadToString();
-
-            if (SelectedEncoding != null)
-            {
-                decodedPayload = SelectedEncoding.Value.GetString(e.ApplicationMessage.Payload);
-            }
-
-            var item = $"Timestamp: {DateTime.Now:O} | Topic: {e.ApplicationMessage.Topic} | Payload: {e.ApplicationMessage.ConvertPayloadToString()} | Decoded Payload: {decodedPayload} | QoS: {e.ApplicationMessage.QualityOfServiceLevel}";
+            var item = $"Timestamp: {DateTime.Now:O} | Topic: {e.ApplicationMessage.Topic} | Payload: {e.ApplicationMessage.ConvertPayloadToString()} | QoS: {e.ApplicationMessage.QualityOfServiceLevel}";
 
             Dispatcher.Invoke(() => Messages.Add(item));
         }

@@ -121,7 +121,8 @@
         </GroupBox>
 
         <GroupBox Grid.Row="1"
-                  Header="Authentication">
+                  Header="Authentication"
+                  IsEnabled="{Binding IsConnected, Converter={StaticResource boolInverterValueConverter}}">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>

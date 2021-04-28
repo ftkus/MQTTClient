@@ -13,6 +13,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using Microsoft.Win32;
 
 using MQTTnet;
 using MQTTnet.Client.Connecting;
@@ -74,8 +75,12 @@ namespace MQTTClient
             log.Updated += Log_Updated;
 
             Server = Properties.Settings.Default.Server;
-
             Port = Properties.Settings.Default.Port;
+            CertPath = Properties.Settings.Default.CertPath;
+            UseTls = Properties.Settings.Default.UseTls;
+            UseAuth = Properties.Settings.Default.UseAuth;
+            Username = Properties.Settings.Default.Username;
+
 
             ClientPublisherViewModels = new ObservableCollection<ClientPublisherViewModel>();
             ClientSubscriberViewModels = new ObservableCollection<ClientSubscriberViewModel>();
@@ -340,6 +345,10 @@ namespace MQTTClient
 
             Properties.Settings.Default.Port = Port;
             Properties.Settings.Default.Server = Server;
+            Properties.Settings.Default.UseAuth = UseAuth;
+            Properties.Settings.Default.Username = Username;
+            Properties.Settings.Default.UseTls = UseTls;
+            Properties.Settings.Default.CertPath = CertPath;
             Properties.Settings.Default.Save();
         }
 
@@ -356,12 +365,14 @@ namespace MQTTClient
 
         private async Task<IManagedMqttClient> StartClientPublisher(MqttFactory factory, string server, int port)
         {
+            var certs = GetCerts();
             var tlsOptions = new MqttClientTlsOptions
             {
                 UseTls = this.UseTls,
                 IgnoreCertificateChainErrors = true,
                 IgnoreCertificateRevocationErrors = true,
                 AllowUntrustedCertificates = true,
+                Certificates = certs,
             };
 
             var options = new MqttClientOptions
@@ -406,12 +417,15 @@ namespace MQTTClient
 
         private async Task<IManagedMqttClient> StartClientSubscriber(MqttFactory factory, string server, int port)
         {
+            var certs = GetCerts();
+
             var tlsOptions = new MqttClientTlsOptions
             {
-                UseTls = false,
+                UseTls = this.UseTls,
                 IgnoreCertificateChainErrors = true,
                 IgnoreCertificateRevocationErrors = true,
                 AllowUntrustedCertificates = true,
+                Certificates = certs,
             };
 
             var options = new MqttClientOptions
@@ -433,8 +447,8 @@ namespace MQTTClient
 
             options.Credentials = new MqttClientCredentials
             {
-                Username = "username",
-                Password = Encoding.UTF8.GetBytes("password")
+                Username = UseAuth ? Username : "username",
+                Password = UseAuth ? Encoding.UTF8.GetBytes(pwBox.Password) : Encoding.UTF8.GetBytes("password")
             };
 
             options.CleanSession = true;
@@ -540,7 +554,16 @@ namespace MQTTClient
 
         private void ButBrowseCert_Click(object sender, RoutedEventArgs e)
         {
+            OpenFileDialog ofd = new OpenFileDialog();
 
+            ofd.FileName = CertPath;
+
+            var result = ofd.ShowDialog();
+
+            if (result == true)
+            {
+                CertPath = ofd.FileName;
+            }
         }
     }
 }

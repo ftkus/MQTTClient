@@ -196,7 +196,8 @@
         </GroupBox>
 
         <GroupBox Grid.Row="2"
-                  Header="Data">
+                  Header="Data"
+                  IsEnabled="{Binding IsConnected}">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="2*"/>
@@ -222,7 +223,8 @@
                                    Text="Search Topic"/>
 
                         <TextBox Grid.Row="0"
-                                 Grid.Column="1"/>
+                                 Grid.Column="1"
+                                 Text="{Binding SearchTopic}"/>
 
                         <TextBlock Grid.Row="1"
                                    Grid.Column="0"
@@ -231,7 +233,10 @@
 
                         <ListBox Grid.Row="2"
                                  Grid.Column="0"
-                                 Grid.ColumnSpan="2"/>
+                                 Grid.ColumnSpan="2"
+                                 ItemsSource="{Binding Tags}"
+                                 SelectedItem="{Binding SelectedTag}"
+                                 MouseDoubleClick="ListBox_MouseDoubleClick"/>
 
                     </Grid>
 
@@ -239,7 +244,30 @@
 
                 <GroupBox Grid.Column="1"
                           Grid.Row="0"
-                          Header="Subscribed Tags"/>
+                          Header="Subscribed Tags">
+                    <DataGrid ItemsSource="{Binding TagValueViewModels}"
+                              AutoGenerateColumns="False"
+                              CanUserReorderColumns="False"
+                              CanUserAddRows="False"
+                              CanUserDeleteRows="False"
+                              Margin="4">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Timestamp"
+                                                IsReadOnly="True"
+                                                Width="120"
+                                                Binding="{Binding Timestamp}"/>
+                            <DataGridTextColumn Header="Tag"
+                                                IsReadOnly="True"
+                                                Width="120"
+                                                Binding="{Binding Tag}"/>
+                            <DataGridTextColumn Header="Value"
+                                                IsReadOnly="True"
+                                                Width="*"
+                                                Binding="{Binding Value}"/>
+                        </DataGrid.Columns>
+                        
+                    </DataGrid>
+                </GroupBox>
 
             </Grid>
         </GroupBox>

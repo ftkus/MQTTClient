@@ -58,13 +58,20 @@ namespace MQTTClient
         private string certPath;
 
         private IManagedMqttClient clientSubscriber;
-        private IManagedMqttClient clientPublisher;
 
         private Log log;
 
         private string logContent;
 
         private string clientName;
+
+        private string searchTopic;
+
+        private ObservableCollection<string> tags;
+
+        private ObservableCollection<TagValueViewModel> tagValueViewModels;
+
+        private string selectedTag;
 
         public MainWindow()
         {
@@ -73,23 +80,16 @@ namespace MQTTClient
             log = new Log();
             log.Updated += Log_Updated;
 
+            Tags = new ObservableCollection<string>();
+
+            TagValueViewModels = new ObservableCollection<TagValueViewModel>();
+
             Server = Properties.Settings.Default.Server;
             Port = Properties.Settings.Default.Port;
             CertPath = Properties.Settings.Default.CertPath;
             UseTls = Properties.Settings.Default.UseTls;
             UseAuth = Properties.Settings.Default.UseAuth;
             Username = Properties.Settings.Default.Username;
-
-            Message msg = new Message()
-            {
-                IsConnected = false,
-                Timestamp = DateTime.Now,
-                Tags = new Dictionary<string, double>() { { "Sine", 3.452 }, { "Step", 1.234 }, { "Ramp", 2.974 } }
-            };
-
-            string output = JsonConvert.SerializeObject(msg);
-
-            log.Add(output);
 
             InitializeComponent();
         }
@@ -125,7 +125,7 @@ namespace MQTTClient
                 NotifyPropertyChanged(nameof(ClientName));
             }
         }
-        
+
         public string Server
         {
             get
@@ -207,7 +207,7 @@ namespace MQTTClient
         }
 
         public string Username
-        { 
+        {
             get
             {
                 return username;
@@ -238,6 +238,74 @@ namespace MQTTClient
             }
         }
 
+        public string SearchTopic
+        {
+            get
+            {
+                return searchTopic;
+            }
+            set
+            {
+                if (Equals(value, searchTopic)) { return; }
+
+                string oldTopic = searchTopic;
+
+                searchTopic = value;
+
+                NotifyPropertyChanged(nameof(SearchTopic));
+
+                SearchTopicChanged(oldTopic);
+            }
+        }
+
+        public ObservableCollection<TagValueViewModel> TagValueViewModels
+        {
+            get
+            {
+                return tagValueViewModels;
+            }
+            set
+            {
+                if (Equals(tagValueViewModels, value)) { return; }
+
+                tagValueViewModels = value;
+
+                NotifyPropertyChanged(nameof(TagValueViewModels));
+            }
+        }
+
+        public string SelectedTag
+        {
+            get
+            {
+                return selectedTag;
+            }
+            set
+            {
+                if (Equals(value, selectedTag)) { return; }
+
+                selectedTag = value;
+
+                NotifyPropertyChanged(nameof(SelectedTag));
+            }
+        }
+
+        public ObservableCollection<string> Tags
+        {
+            get
+            {
+                return tags;
+            }
+            set
+            {
+                if (Equals(value, tags)) { return; }
+
+                tags = value;
+
+                NotifyPropertyChanged(nameof(Tags));
+            }
+        }
+
         public string ClientSub => $"{ClientName}_sub";
 
         private string GetClientName()
@@ -265,34 +333,96 @@ namespace MQTTClient
             return certs;
         }
 
-        private void UpdateTopic(string topic, string paylod)
+        private void UpdateTopicTags(string payload)
         {
-           
+            object deserializedObject = JsonConvert.DeserializeObject<Message>(payload);
+
+            if (deserializedObject is Message msg)
+            {
+                IEnumerable<string> tags = msg.Tags.Select(d => d.Key);
+
+                if (tags.SequenceEqual(Tags)) { return; }
+
+                var newTags = tags.Except(Tags).ToArray();
+
+                Tags = new ObservableCollection<string>(tags);
+
+                foreach(var s in newTags)
+                {
+                    log.Add($"{DateTime.Now}: New tag found for topic: {s}");
+                }
+            }
         }
 
-        private bool CompareTopics(string localTopic, string receivedTopic)
+        private void UpdateData(string topic, string payload)
         {
-            const char TopicLevelSeparator = '/';
-            const string Wildcard = "#";
+            object deserializedObject = JsonConvert.DeserializeObject<Message>(payload);
 
-            string[] localTopicArray = localTopic.Split(TopicLevelSeparator);
-            string[] receivedTopicArray = receivedTopic.Split(TopicLevelSeparator);
-
-            for(int i = 0; i < receivedTopicArray.Length; i++)
+            if (deserializedObject is Message msg)
             {
-                if (localTopicArray.Length <= i) { return false; }
-
-                if (string.Equals(localTopicArray[i], Wildcard)) { return true; }
-
-                if (string.Equals(localTopicArray[i], receivedTopicArray[i]))
+                foreach (var tvvm in TagValueViewModels)
                 {
-                    continue;
+                    if (tvvm.Topic == topic)
+                    {
+                        foreach (var tag in msg.Tags)
+                        {
+                            if (tvvm.Tag == tag.Key)
+                            {
+                                tvvm.Value = tag.Value;
+                                tvvm.Timestamp = msg.Timestamp;
+                            }
+                        }
+                    }
                 }
+            }
+        }
 
-                return false;
+        private async void SearchTopicChanged(string oldTopic)
+        {
+            if (!string.IsNullOrWhiteSpace(oldTopic))
+            {
+                if (!TagValueViewModels.Any(t => t.Topic == oldTopic))
+                {
+                    await clientSubscriber?.UnsubscribeAsync(oldTopic);
+
+                    log.Add($"{DateTime.Now}: Unsubscribed from topic {oldTopic}");
+                }
             }
 
-            return true;
+            if (!string.IsNullOrWhiteSpace(SearchTopic))
+            {
+                if (!TagValueViewModels.Any(t => t.Topic == SearchTopic))
+                {
+                    await clientSubscriber?.SubscribeAsync(SearchTopic);
+
+                    log.Add($"{DateTime.Now}: Subscribed to topic {SearchTopic}");
+                }
+            }
+
+            Tags = new ObservableCollection<string>();
+        }
+
+        private void AddTag(string topic, string tag)
+        {
+            if (string.IsNullOrWhiteSpace(topic))
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(tag))
+            {
+                return;
+            }
+
+            if (TagValueViewModels.Any(t => t.Tag == tag && t.Topic == topic)) { return; }
+
+            var tvvm = new TagValueViewModel()
+            {
+                Tag = tag,
+                Topic = topic,
+            };
+
+            TagValueViewModels.Add(tvvm);
         }
 
         private void NotifyPropertyChanged(string propertyName)
@@ -320,10 +450,8 @@ namespace MQTTClient
         private async void ButDisconnect_OnClick(object sender, RoutedEventArgs e)
         {
             await clientSubscriber?.StopAsync();
-            await clientPublisher?.StopAsync();
 
             clientSubscriber = null;
-            clientPublisher = null;
 
             IsConnected = false;
         }
@@ -393,11 +521,15 @@ namespace MQTTClient
 
         private void Client_OnSubscriberMessageReceived(MqttApplicationMessageReceivedEventArgs e)
         {
-            var item = $"Timestamp: {DateTime.Now:O} | Topic: {e.ApplicationMessage.Topic} | Payload: {e.ApplicationMessage.ConvertPayloadToString()} | QoS: {e.ApplicationMessage.QualityOfServiceLevel}";
+            //var item = $"Timestamp: {DateTime.Now:O} | Topic: {e.ApplicationMessage.Topic} | Payload: {e.ApplicationMessage.ConvertPayloadToString()} | QoS: {e.ApplicationMessage.QualityOfServiceLevel}";
+            //log.Add(item);
 
-            log.Add(item);
+            if (e.ApplicationMessage.Topic == SearchTopic)
+            {
+                UpdateTopicTags(e.ApplicationMessage.ConvertPayloadToString());
+            }
 
-            UpdateTopic(e.ApplicationMessage.Topic, e.ApplicationMessage.ConvertPayloadToString());
+            UpdateData(e.ApplicationMessage.Topic, e.ApplicationMessage.ConvertPayloadToString());
         }
 
         private void Log_Updated(object sender, Log.LogEventArgs e)
@@ -417,6 +549,11 @@ namespace MQTTClient
             {
                 CertPath = ofd.FileName;
             }
+        }
+
+        private void ListBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            AddTag(SearchTopic, SelectedTag);
         }
     }
 }

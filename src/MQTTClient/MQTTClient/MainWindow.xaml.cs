@@ -31,6 +31,9 @@ using System.Timers;
 
 using System.Security.Cryptography.X509Certificates;
 
+using MQTTClient.Data;
+using Newtonsoft.Json;
+
 namespace MQTTClient
 {
     /// <summary>
@@ -84,6 +87,17 @@ namespace MQTTClient
 
             ClientPublisherViewModels = new ObservableCollection<ClientPublisherViewModel>();
             ClientSubscriberViewModels = new ObservableCollection<ClientSubscriberViewModel>();
+
+            Message msg = new Message()
+            {
+                IsConnected = false,
+                Timestamp = DateTime.Now,
+                Tags = new Dictionary<string, double>() { { "Sine", 3.452 }, { "Step", 1.234 }, { "Ramp", 2.974 } }
+            };
+
+            string output = JsonConvert.SerializeObject(msg);
+
+            log.Add(output);
 
             InitializeComponent();
         }

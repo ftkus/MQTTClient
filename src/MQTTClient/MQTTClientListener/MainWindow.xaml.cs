@@ -33,7 +33,6 @@ namespace MQTTClientListener
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
         private IManagedMqttClient client;
-        private IManagedMqttClient clientPublisher;
 
         private bool isConnected;
 

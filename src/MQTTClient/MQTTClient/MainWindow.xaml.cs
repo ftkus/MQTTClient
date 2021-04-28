@@ -34,6 +34,9 @@ using System.Security.Cryptography.X509Certificates;
 using MQTTClient.Data;
 using Newtonsoft.Json;
 
+using OxyPlot;
+using OxyPlot.Series;
+
 namespace MQTTClient
 {
     /// <summary>
@@ -90,6 +93,8 @@ namespace MQTTClient
             UseTls = Properties.Settings.Default.UseTls;
             UseAuth = Properties.Settings.Default.UseAuth;
             Username = Properties.Settings.Default.Username;
+
+            MyModel = new PlotModel { Title = "Data Preview" };
 
             InitializeComponent();
         }
@@ -308,6 +313,8 @@ namespace MQTTClient
 
         public string ClientSub => $"{ClientName}_sub";
 
+        public PlotModel MyModel { get; private set; }
+
         private string GetClientName()
         {
             string cpuInfo = string.Empty;
@@ -389,8 +396,7 @@ namespace MQTTClient
                         {
                             if (tvvm.Tag == tag.Key)
                             {
-                                tvvm.Value = tag.Value;
-                                tvvm.Timestamp = msg.Timestamp;
+                                tvvm.Update(tag.Value, tvvm.Timestamp;
                             }
                         }
                     }

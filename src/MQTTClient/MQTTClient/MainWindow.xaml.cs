@@ -58,7 +58,6 @@ namespace MQTTClient
         private string certPath;
 
         private IManagedMqttClient clientSubscriber;
-        private IManagedMqttClient clientPublisher;
 
         private Log log;
 
@@ -66,9 +65,13 @@ namespace MQTTClient
 
         private string clientName;
 
-        private ObservableCollection<ClientPublisherViewModel> clientPublisherViewModels;
+        private string searchTopic;
 
-        private ObservableCollection<ClientSubscriberViewModel> clientSubscriberViewModels;
+        private ObservableCollection<TagTopicViewModel> tags;
+
+        private ObservableCollection<TagValueViewModel> tagValueViewModels;
+
+        private TagTopicViewModel selectedTag;
 
         public MainWindow()
         {
@@ -77,27 +80,16 @@ namespace MQTTClient
             log = new Log();
             log.Updated += Log_Updated;
 
+            Tags = new ObservableCollection<TagTopicViewModel>();
+
+            TagValueViewModels = new ObservableCollection<TagValueViewModel>();
+
             Server = Properties.Settings.Default.Server;
             Port = Properties.Settings.Default.Port;
             CertPath = Properties.Settings.Default.CertPath;
             UseTls = Properties.Settings.Default.UseTls;
             UseAuth = Properties.Settings.Default.UseAuth;
             Username = Properties.Settings.Default.Username;
-
-
-            ClientPublisherViewModels = new ObservableCollection<ClientPublisherViewModel>();
-            ClientSubscriberViewModels = new ObservableCollection<ClientSubscriberViewModel>();
-
-            Message msg = new Message()
-            {
-                IsConnected = false,
-                Timestamp = DateTime.Now,
-                Tags = new Dictionary<string, double>() { { "Sine", 3.452 }, { "Step", 1.234 }, { "Ramp", 2.974 } }
-            };
-
-            string output = JsonConvert.SerializeObject(msg);
-
-            log.Add(output);
 
             InitializeComponent();
         }
@@ -133,7 +125,7 @@ namespace MQTTClient
                 NotifyPropertyChanged(nameof(ClientName));
             }
         }
-        
+
         public string Server
         {
             get
@@ -215,7 +207,7 @@ namespace MQTTClient
         }
 
         public string Username
-        { 
+        {
             get
             {
                 return username;
@@ -246,41 +238,75 @@ namespace MQTTClient
             }
         }
 
-        public string ClientSub => $"{ClientName}.sub";
-
-        public string ClientPub => $"{ClientName}.pub";
-
-        public ObservableCollection<ClientPublisherViewModel> ClientPublisherViewModels
+        public string SearchTopic
         {
-            get => clientPublisherViewModels;
+            get
+            {
+                return searchTopic;
+            }
             set
             {
-                if (Equals(clientPublisherViewModels, value))
-                {
-                    return;
-                }
+                if (Equals(value, searchTopic)) { return; }
 
-                clientPublisherViewModels = value;
+                string oldTopic = searchTopic;
 
-                NotifyPropertyChanged(nameof(ClientPublisherViewModels));
+                searchTopic = value;
+
+                NotifyPropertyChanged(nameof(SearchTopic));
+
+                SearchTopicChanged(oldTopic);
             }
         }
 
-        public ObservableCollection<ClientSubscriberViewModel> ClientSubscriberViewModels
+        public ObservableCollection<TagValueViewModel> TagValueViewModels
         {
-            get => clientSubscriberViewModels;
+            get
+            {
+                return tagValueViewModels;
+            }
             set
             {
-                if (Equals(clientSubscriberViewModels, value))
-                {
-                    return;
-                }
+                if (Equals(tagValueViewModels, value)) { return; }
 
-                clientSubscriberViewModels = value;
+                tagValueViewModels = value;
 
-                NotifyPropertyChanged(nameof(clientSubscriberViewModels));
+                NotifyPropertyChanged(nameof(TagValueViewModels));
             }
         }
+
+        public TagTopicViewModel SelectedTag
+        {
+            get
+            {
+                return selectedTag;
+            }
+            set
+            {
+                if (Equals(value, selectedTag)) { return; }
+
+                selectedTag = value;
+
+                NotifyPropertyChanged(nameof(SelectedTag));
+            }
+        }
+
+        public ObservableCollection<TagTopicViewModel> Tags
+        {
+            get
+            {
+                return tags;
+            }
+            set
+            {
+                if (Equals(value, tags)) { return; }
+
+                tags = value;
+
+                NotifyPropertyChanged(nameof(Tags));
+            }
+        }
+
+        public string ClientSub => $"{ClientName}_sub";
 
         private string GetClientName()
         {
@@ -307,13 +333,20 @@ namespace MQTTClient
             return certs;
         }
 
-        private void UpdateTopic(string topic, string paylod)
+        private void UpdateTopicTags(string topic, string payload)
         {
-            foreach (var vm in ClientSubscriberViewModels)
+            object deserializedObject = JsonConvert.DeserializeObject<Message>(payload);
+
+            if (deserializedObject is Message msg)
             {
-                if (CompareTopics(vm.Topic, topic))
+                foreach(var m in msg.Tags)
                 {
-                    vm.Message = paylod;
+                    if (Tags.Any(t => t.Topic == topic && t.Tag == m.Key))
+                    {
+                        continue;
+                    }
+
+                    Dispatcher.Invoke(() => Tags.Add(new TagTopicViewModel(topic, m.Key)));
                 }
             }
         }
@@ -326,7 +359,7 @@ namespace MQTTClient
             string[] localTopicArray = localTopic.Split(TopicLevelSeparator);
             string[] receivedTopicArray = receivedTopic.Split(TopicLevelSeparator);
 
-            for(int i = 0; i < receivedTopicArray.Length; i++)
+            for (int i = 0; i < receivedTopicArray.Length; i++)
             {
                 if (localTopicArray.Length <= i) { return false; }
 
@@ -339,8 +372,80 @@ namespace MQTTClient
 
                 return false;
             }
-
             return true;
+        }
+
+        private void UpdateData(string topic, string payload)
+        {
+            object deserializedObject = JsonConvert.DeserializeObject<Message>(payload);
+
+            if (deserializedObject is Message msg)
+            {
+                foreach (var tvvm in TagValueViewModels)
+                {
+                    if (tvvm.Topic == topic)
+                    {
+                        foreach (var tag in msg.Tags)
+                        {
+                            if (tvvm.Tag == tag.Key)
+                            {
+                                tvvm.Value = tag.Value;
+                                tvvm.Timestamp = msg.Timestamp;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private async void SearchTopicChanged(string oldTopic)
+        {
+            if (!string.IsNullOrWhiteSpace(oldTopic))
+            {
+                if (!TagValueViewModels.Any(t => t.Topic == oldTopic))
+                {
+                    await clientSubscriber?.UnsubscribeAsync(oldTopic);
+
+                    log.Add($"{DateTime.Now}: Unsubscribed from topic {oldTopic}");
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(SearchTopic))
+            {
+                if (!TagValueViewModels.Any(t => t.Topic == SearchTopic))
+                {
+                    await clientSubscriber?.SubscribeAsync(SearchTopic);
+
+                    log.Add($"{DateTime.Now}: Subscribed to topic {SearchTopic}");
+                }
+            }
+
+            Tags = new ObservableCollection<TagTopicViewModel>();
+        }
+
+        private void AddTag(string topic, string tag)
+        {
+            if (string.IsNullOrWhiteSpace(topic))
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(tag))
+            {
+                return;
+            }
+
+            if (TagValueViewModels.Any(t => t.Tag == tag && t.Topic == topic)) { return; }
+
+            var tvvm = new TagValueViewModel()
+            {
+                Tag = tag,
+                Topic = topic,
+            };
+
+            TagValueViewModels.Add(tvvm);
+
+            log.Add($"{DateTime.Now}: Subscribed to item {tag} on topic {topic}");
         }
 
         private void NotifyPropertyChanged(string propertyName)
@@ -353,7 +458,6 @@ namespace MQTTClient
             var mqttFactory = new MqttFactory();
 
             clientSubscriber = StartClientSubscriber(mqttFactory, Server, Port).Result;
-            clientPublisher = StartClientPublisher(mqttFactory, Server, Port).Result;
 
             IsConnected = true;
 
@@ -369,64 +473,10 @@ namespace MQTTClient
         private async void ButDisconnect_OnClick(object sender, RoutedEventArgs e)
         {
             await clientSubscriber?.StopAsync();
-            await clientPublisher?.StopAsync();
 
             clientSubscriber = null;
-            clientPublisher = null;
 
             IsConnected = false;
-        }
-
-        private async Task<IManagedMqttClient> StartClientPublisher(MqttFactory factory, string server, int port)
-        {
-            var certs = GetCerts();
-            var tlsOptions = new MqttClientTlsOptions
-            {
-                UseTls = this.UseTls,
-                IgnoreCertificateChainErrors = true,
-                IgnoreCertificateRevocationErrors = true,
-                AllowUntrustedCertificates = true,
-                Certificates = certs,
-            };
-
-            var options = new MqttClientOptions
-            {
-                ClientId = ClientPub,
-                ProtocolVersion = MqttProtocolVersion.V311,
-                ChannelOptions = new MqttClientTcpOptions
-                {
-                    Server = server,
-                    Port = port,
-                    TlsOptions = tlsOptions
-                }
-            };
-
-            if (options.ChannelOptions == null)
-            {
-                throw new InvalidOperationException();
-            }
-
-            options.Credentials = new MqttClientCredentials
-            {
-                Username = UseAuth ? Username : "username",
-                Password = UseAuth ? Encoding.UTF8.GetBytes(pwBox.Password) : Encoding.UTF8.GetBytes("password")
-            };
-
-            options.CleanSession = true;
-            options.KeepAlivePeriod = TimeSpan.FromSeconds(5);
-
-
-            IManagedMqttClient managedMqttClientPublisher = factory.CreateManagedMqttClient();
-            managedMqttClientPublisher.UseApplicationMessageReceivedHandler(Client_HandleReceivedApplicationMessage);
-            managedMqttClientPublisher.ConnectedHandler = new MqttClientConnectedHandlerDelegate(Client_OnPublisherConnected);
-            managedMqttClientPublisher.DisconnectedHandler = new MqttClientDisconnectedHandlerDelegate(Client_OnPublisherDisconnected);
-            await managedMqttClientPublisher.StartAsync(
-                new ManagedMqttClientOptions
-                {
-                    ClientOptions = options
-                });
-
-            return managedMqttClientPublisher;
         }
 
         private async Task<IManagedMqttClient> StartClientSubscriber(MqttFactory factory, string server, int port)
@@ -494,76 +544,18 @@ namespace MQTTClient
 
         private void Client_OnSubscriberMessageReceived(MqttApplicationMessageReceivedEventArgs e)
         {
-            var item = $"Timestamp: {DateTime.Now:O} | Topic: {e.ApplicationMessage.Topic} | Payload: {e.ApplicationMessage.ConvertPayloadToString()} | QoS: {e.ApplicationMessage.QualityOfServiceLevel}";
+            if (CompareTopics(SearchTopic, e.ApplicationMessage.Topic))
+            {
+                UpdateTopicTags(e.ApplicationMessage.Topic, e.ApplicationMessage.ConvertPayloadToString());
+            }
 
-            log.Add(item);
-
-            UpdateTopic(e.ApplicationMessage.Topic, e.ApplicationMessage.ConvertPayloadToString());
-        }
-
-        private void Client_OnPublisherConnected(MqttClientConnectedEventArgs e)
-        {
-            log.Add($"{ClientPub} Connected");
-        }
-
-        private void Client_OnPublisherDisconnected(MqttClientDisconnectedEventArgs e)
-        {
-            log.Add($"{ClientPub} Disconnected");
-        }
-
-        private void Client_HandleReceivedApplicationMessage(MqttApplicationMessageReceivedEventArgs e)
-        {
-            var item = $"Timestamp: {DateTime.Now:O} | Topic: {e.ApplicationMessage.Topic} | Payload: {e.ApplicationMessage.ConvertPayloadToString()} | QoS: {e.ApplicationMessage.QualityOfServiceLevel}";
-
-            log.Add(item);
+            UpdateData(e.ApplicationMessage.Topic, e.ApplicationMessage.ConvertPayloadToString());
         }
 
         private void Log_Updated(object sender, Log.LogEventArgs e)
         {
             LogContent = e.Log.ToString();
-        }
-
-        private void MiPublisherAdd_Click(object sender, RoutedEventArgs e)
-        {
-            ClientPublisherViewModel newVM = new ClientPublisherViewModel();
-            newVM.MessageChanged += PublisherVM_MessageChanged;
-
-            ClientPublisherViewModels.Add(newVM);
-        }
-
-        private void PublisherVM_MessageChanged(object sender, ClientPublisherViewModel.MessageChangedEventArgs e)
-        {
-            if (clientPublisher is null) { return; }
-
-            if (string.IsNullOrWhiteSpace(e.Topic)) { return; }
-            if (string.IsNullOrWhiteSpace(e.Message)) { return; }
-
-            clientPublisher?.PublishAsync(e.Topic, e.Message);
-        }
-
-        private void MiSubscriberAdd_Click(object sender, RoutedEventArgs e)
-        {
-            ClientSubscriberViewModel newVM = new ClientSubscriberViewModel();
-            newVM.TopicChanged += SubscriberVM_TopicChanged;
-
-            ClientSubscriberViewModels.Add(newVM);
-        }
-
-        private void SubscriberVM_TopicChanged(object sender, ClientSubscriberViewModel.TopicChangedEventArgs e)
-        {
-            if (clientSubscriber is null) { return; }
-
-            //Unsubscribe old
-            if (!string.IsNullOrWhiteSpace(e.OldTopic))
-            {
-                clientSubscriber.UnsubscribeAsync(e.OldTopic);
-            }
-
-            //Subscribe new
-            if (!string.IsNullOrWhiteSpace(e.NewTopic))
-            {
-                clientSubscriber.SubscribeAsync(e.NewTopic);
-            }
+            Dispatcher.Invoke(() => logListBox.ScrollToEnd());
         }
 
         private void ButBrowseCert_Click(object sender, RoutedEventArgs e)
@@ -578,6 +570,13 @@ namespace MQTTClient
             {
                 CertPath = ofd.FileName;
             }
+        }
+
+        private void ListBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (SelectedTag is null) { return; }
+
+            AddTag(SelectedTag.Topic, SelectedTag.Tag);
         }
     }
 }

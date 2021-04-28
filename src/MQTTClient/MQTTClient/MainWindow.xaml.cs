@@ -13,8 +13,8 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using Microsoft.Win32;
 
-using System.Threading.Tasks;
 using MQTTnet;
 using MQTTnet.Client.Connecting;
 using MQTTnet.Client.Disconnecting;
@@ -28,6 +28,11 @@ using MQTTnet.Server;
 using System.Management;
 using System.Collections.ObjectModel;
 using System.Timers;
+
+using System.Security.Cryptography.X509Certificates;
+
+using MQTTClient.Data;
+using Newtonsoft.Json;
 
 namespace MQTTClient
 {
@@ -43,6 +48,14 @@ namespace MQTTClient
         private string server;
 
         private int port;
+
+        private bool useTls;
+
+        private bool useAuth;
+
+        private string username;
+
+        private string certPath;
 
         private IManagedMqttClient clientSubscriber;
         private IManagedMqttClient clientPublisher;
@@ -65,11 +78,26 @@ namespace MQTTClient
             log.Updated += Log_Updated;
 
             Server = Properties.Settings.Default.Server;
-
             Port = Properties.Settings.Default.Port;
+            CertPath = Properties.Settings.Default.CertPath;
+            UseTls = Properties.Settings.Default.UseTls;
+            UseAuth = Properties.Settings.Default.UseAuth;
+            Username = Properties.Settings.Default.Username;
+
 
             ClientPublisherViewModels = new ObservableCollection<ClientPublisherViewModel>();
             ClientSubscriberViewModels = new ObservableCollection<ClientSubscriberViewModel>();
+
+            Message msg = new Message()
+            {
+                IsConnected = false,
+                Timestamp = DateTime.Now,
+                Tags = new Dictionary<string, double>() { { "Sine", 3.452 }, { "Step", 1.234 }, { "Ramp", 2.974 } }
+            };
+
+            string output = JsonConvert.SerializeObject(msg);
+
+            log.Add(output);
 
             InitializeComponent();
         }
@@ -154,6 +182,74 @@ namespace MQTTClient
             }
         }
 
+        public bool UseTls
+        {
+            get
+            {
+                return useTls;
+            }
+            set
+            {
+                if (Equals(useTls, value)) { return; }
+
+                useTls = value;
+
+                NotifyPropertyChanged(nameof(UseTls));
+            }
+        }
+
+        public bool UseAuth
+        {
+            get
+            {
+                return useAuth;
+            }
+            set
+            {
+                if (Equals(useAuth, value)) { return; }
+
+                useAuth = value;
+
+                NotifyPropertyChanged(nameof(UseAuth));
+            }
+        }
+
+        public string Username
+        { 
+            get
+            {
+                return username;
+            }
+            set
+            {
+                if (Equals(username, value)) { return; }
+
+                username = value;
+
+                NotifyPropertyChanged(nameof(Username));
+            }
+        }
+
+        public string CertPath
+        {
+            get
+            {
+                return certPath;
+            }
+            set
+            {
+                if (Equals(certPath, value)) { return; }
+
+                certPath = value;
+
+                NotifyPropertyChanged(nameof(CertPath));
+            }
+        }
+
+        public string ClientSub => $"{ClientName}.sub";
+
+        public string ClientPub => $"{ClientName}.pub";
+
         public ObservableCollection<ClientPublisherViewModel> ClientPublisherViewModels
         {
             get => clientPublisherViewModels;
@@ -201,6 +297,16 @@ namespace MQTTClient
             return cpuInfo;
         }
 
+        private List<X509Certificate> GetCerts()
+        {
+            List<X509Certificate> certs = new List<X509Certificate>
+            {
+                new X509Certificate2(CertPath),
+            };
+
+            return certs;
+        }
+
         private void UpdateTopic(string topic, string paylod)
         {
             foreach (var vm in ClientSubscriberViewModels)
@@ -242,21 +348,25 @@ namespace MQTTClient
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        private void butConnect_OnClick(object sender, RoutedEventArgs e)
+        private void ButConnect_OnClick(object sender, RoutedEventArgs e)
         {
             var mqttFactory = new MqttFactory();
 
-            clientSubscriber = StartClientSubscriber(mqttFactory, Server, Port, ClientName).Result;
-            clientPublisher = StartClientPublisher(mqttFactory, Server, Port, ClientName).Result;
+            clientSubscriber = StartClientSubscriber(mqttFactory, Server, Port).Result;
+            clientPublisher = StartClientPublisher(mqttFactory, Server, Port).Result;
 
             IsConnected = true;
 
             Properties.Settings.Default.Port = Port;
             Properties.Settings.Default.Server = Server;
+            Properties.Settings.Default.UseAuth = UseAuth;
+            Properties.Settings.Default.Username = Username;
+            Properties.Settings.Default.UseTls = UseTls;
+            Properties.Settings.Default.CertPath = CertPath;
             Properties.Settings.Default.Save();
         }
 
-        private async void butDisconnect_OnClick(object sender, RoutedEventArgs e)
+        private async void ButDisconnect_OnClick(object sender, RoutedEventArgs e)
         {
             await clientSubscriber?.StopAsync();
             await clientPublisher?.StopAsync();
@@ -267,19 +377,21 @@ namespace MQTTClient
             IsConnected = false;
         }
 
-        private async Task<IManagedMqttClient> StartClientPublisher(MqttFactory factory, string server, int port, string name)
+        private async Task<IManagedMqttClient> StartClientPublisher(MqttFactory factory, string server, int port)
         {
+            var certs = GetCerts();
             var tlsOptions = new MqttClientTlsOptions
             {
-                UseTls = false,
+                UseTls = this.UseTls,
                 IgnoreCertificateChainErrors = true,
                 IgnoreCertificateRevocationErrors = true,
-                AllowUntrustedCertificates = true
+                AllowUntrustedCertificates = true,
+                Certificates = certs,
             };
 
             var options = new MqttClientOptions
             {
-                ClientId = $"{name}.pub",
+                ClientId = ClientPub,
                 ProtocolVersion = MqttProtocolVersion.V311,
                 ChannelOptions = new MqttClientTcpOptions
                 {
@@ -296,8 +408,8 @@ namespace MQTTClient
 
             options.Credentials = new MqttClientCredentials
             {
-                Username = "username",
-                Password = Encoding.UTF8.GetBytes("password")
+                Username = UseAuth ? Username : "username",
+                Password = UseAuth ? Encoding.UTF8.GetBytes(pwBox.Password) : Encoding.UTF8.GetBytes("password")
             };
 
             options.CleanSession = true;
@@ -317,19 +429,22 @@ namespace MQTTClient
             return managedMqttClientPublisher;
         }
 
-        private async Task<IManagedMqttClient> StartClientSubscriber(MqttFactory factory, string server, int port, string name)
+        private async Task<IManagedMqttClient> StartClientSubscriber(MqttFactory factory, string server, int port)
         {
+            var certs = GetCerts();
+
             var tlsOptions = new MqttClientTlsOptions
             {
-                UseTls = false,
+                UseTls = this.UseTls,
                 IgnoreCertificateChainErrors = true,
                 IgnoreCertificateRevocationErrors = true,
-                AllowUntrustedCertificates = true
+                AllowUntrustedCertificates = true,
+                Certificates = certs,
             };
 
             var options = new MqttClientOptions
             {
-                ClientId = $"{name}.sub",
+                ClientId = ClientSub,
                 ProtocolVersion = MqttProtocolVersion.V311,
                 ChannelOptions = new MqttClientTcpOptions
                 {
@@ -346,8 +461,8 @@ namespace MQTTClient
 
             options.Credentials = new MqttClientCredentials
             {
-                Username = "username",
-                Password = Encoding.UTF8.GetBytes("password")
+                Username = UseAuth ? Username : "username",
+                Password = UseAuth ? Encoding.UTF8.GetBytes(pwBox.Password) : Encoding.UTF8.GetBytes("password")
             };
 
             options.CleanSession = true;
@@ -369,12 +484,12 @@ namespace MQTTClient
 
         private void Client_OnSubscriberConnected(MqttClientConnectedEventArgs e)
         {
-           log.Add($"{ClientName} Connected");
+           log.Add($"{ClientSub} Connected");
         }
 
         private void Client_OnSubscriberDisconnected(MqttClientDisconnectedEventArgs e)
         {
-            log.Add($"{ClientName} Disconnected");
+            log.Add($"{ClientSub} Disconnected");
         }
 
         private void Client_OnSubscriberMessageReceived(MqttApplicationMessageReceivedEventArgs e)
@@ -388,12 +503,12 @@ namespace MQTTClient
 
         private void Client_OnPublisherConnected(MqttClientConnectedEventArgs e)
         {
-            log.Add($"{ClientName} Connected");
+            log.Add($"{ClientPub} Connected");
         }
 
         private void Client_OnPublisherDisconnected(MqttClientDisconnectedEventArgs e)
         {
-            log.Add($"{ClientName} Disconnected");
+            log.Add($"{ClientPub} Disconnected");
         }
 
         private void Client_HandleReceivedApplicationMessage(MqttApplicationMessageReceivedEventArgs e)
@@ -448,6 +563,20 @@ namespace MQTTClient
             if (!string.IsNullOrWhiteSpace(e.NewTopic))
             {
                 clientSubscriber.SubscribeAsync(e.NewTopic);
+            }
+        }
+
+        private void ButBrowseCert_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog ofd = new OpenFileDialog();
+
+            ofd.FileName = CertPath;
+
+            var result = ofd.ShowDialog();
+
+            if (result == true)
+            {
+                CertPath = ofd.FileName;
             }
         }
     }

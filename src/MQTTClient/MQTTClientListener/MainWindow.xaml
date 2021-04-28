@@ -105,15 +105,6 @@
             </Grid>
         </GroupBox>
 
-        <GroupBox Header="Encoding"
-                  Grid.Row="1">
-
-            <ComboBox ItemsSource="{Binding Encodings}"
-                      SelectedItem="{Binding SelectedEncoding}"
-                      DisplayMemberPath="Name"/>
-
-        </GroupBox>
-
         <ListBox Grid.Row="2"
                  Grid.Column="0"
                  ItemsSource="{Binding Messages}">

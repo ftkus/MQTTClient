@@ -1,0 +1,21 @@
+#From Redlion
+{
+	"connected":"true",
+	"tags":
+	{
+		"Sinus":-0.55774
+	},
+	"timestamp":"2010-01-15T02:42:43.000Z"
+}	
+
+#From Test
+{
+	"connected":false,
+	"tags":
+	{
+		"Sine":3.452,
+		"Step":1.234,
+		"Ramp":2.974
+	},
+	"timestamp":"2021-04-28T11:10:55.2518552-04:00"
+}

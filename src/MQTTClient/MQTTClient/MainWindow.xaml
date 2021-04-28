@@ -8,9 +8,9 @@
         DataContext="{Binding ElementName=win}"
         mc:Ignorable="d"
         Title="MQTT Client" 
-        MinHeight="450" 
+        MinHeight="750" 
         MinWidth="400"
-        Height="450" 
+        Height="750" 
         Width="800">
 
     <Window.Resources>
@@ -30,6 +30,20 @@
             <Setter Property="Padding"
                     Value="4"/>
         </Style>
+        <Style TargetType="PasswordBox">
+            <Setter Property="Margin"
+                    Value="4"/>
+            <Setter Property="Padding"
+                    Value="4"/>
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Margin"
+                    Value="4"/>
+            <Setter Property="Padding"
+                    Value="4"/>
+            <Setter Property="VerticalAlignment"
+                    Value="Center"/>
+        </Style>
         <Style TargetType="Button">
             <Style.Resources>
                 <Style TargetType="Border">
@@ -48,6 +62,7 @@
     
     <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="*"/>
@@ -94,18 +109,87 @@
 
                     <Button Content="Connect"
                             IsEnabled="{Binding IsConnected, Converter={StaticResource boolInverterValueConverter}}"
-                            Click="butConnect_OnClick"/>
+                            Click="ButConnect_OnClick"/>
 
                     <Button Content="Disconnect"
                             IsEnabled="{Binding IsConnected}"
-                            Click="butDisconnect_OnClick"/>
+                            Click="ButDisconnect_OnClick"/>
 
                 </StackPanel>
                 
             </Grid>
         </GroupBox>
 
-        <Grid Grid.Row="1">
+        <GroupBox Grid.Row="1"
+                  Header="Authentication"
+                  IsEnabled="{Binding IsConnected, Converter={StaticResource boolInverterValueConverter}}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <CheckBox Grid.Row="0"
+                          Grid.Column="0"
+                          Content="Use TLS"
+                          IsChecked="{Binding UseTls}"/>
+
+                <TextBox Grid.Row="0"
+                         Grid.Column="1"
+                         IsReadOnly="True"
+                         IsEnabled="{Binding UseTls}"
+                         Text="{Binding CertPath}"/>
+
+                <Button Grid.Row="0"
+                        Grid.Column="2"
+                         IsEnabled="{Binding UseTls}"
+                        Content="Browse"
+                        Click="ButBrowseCert_Click"/>
+
+                <CheckBox Grid.Row="1"
+                          Grid.Column="0"
+                          Content="Use Authentication"
+                          IsChecked="{Binding UseAuth}"/>
+
+                <Grid Grid.Row="1"
+                      Grid.Column="1"
+                      Grid.ColumnSpan="2"
+                      IsEnabled="{Binding UseAuth}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition/>
+                        <RowDefinition/>
+                    </Grid.RowDefinitions>
+                    
+                    <TextBlock Grid.Row="0"
+                               Grid.Column="0"
+                               Text="Username"/>
+                    <TextBox Grid.Row="0"
+                             Grid.Column="1"
+                             Text="{Binding Username}"/>
+
+                    <TextBlock Grid.Row="1"
+                               Grid.Column="0"
+                               Text="Password"/>
+                    <PasswordBox Grid.Row="1"
+                                 Grid.Column="1"
+                                 x:Name="pwBox"/>
+
+                </Grid>
+
+            </Grid>
+        </GroupBox>
+
+        <Grid Grid.Row="2">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition/>
@@ -174,7 +258,7 @@
             </Grid>
         </Grid>
 
-        <GroupBox Grid.Row="2"
+        <GroupBox Grid.Row="3"
                   Header="Log">
             <TextBox IsReadOnly="True"
                      Text="{Binding LogContent, Mode=TwoWay}"

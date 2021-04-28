@@ -66,10 +66,6 @@ namespace MQTTClient
 
         private string clientName;
 
-        private ObservableCollection<ClientPublisherViewModel> clientPublisherViewModels;
-
-        private ObservableCollection<ClientSubscriberViewModel> clientSubscriberViewModels;
-
         public MainWindow()
         {
             ClientName = GetClientName();
@@ -83,10 +79,6 @@ namespace MQTTClient
             UseTls = Properties.Settings.Default.UseTls;
             UseAuth = Properties.Settings.Default.UseAuth;
             Username = Properties.Settings.Default.Username;
-
-
-            ClientPublisherViewModels = new ObservableCollection<ClientPublisherViewModel>();
-            ClientSubscriberViewModels = new ObservableCollection<ClientSubscriberViewModel>();
 
             Message msg = new Message()
             {
@@ -246,41 +238,7 @@ namespace MQTTClient
             }
         }
 
-        public string ClientSub => $"{ClientName}.sub";
-
-        public string ClientPub => $"{ClientName}.pub";
-
-        public ObservableCollection<ClientPublisherViewModel> ClientPublisherViewModels
-        {
-            get => clientPublisherViewModels;
-            set
-            {
-                if (Equals(clientPublisherViewModels, value))
-                {
-                    return;
-                }
-
-                clientPublisherViewModels = value;
-
-                NotifyPropertyChanged(nameof(ClientPublisherViewModels));
-            }
-        }
-
-        public ObservableCollection<ClientSubscriberViewModel> ClientSubscriberViewModels
-        {
-            get => clientSubscriberViewModels;
-            set
-            {
-                if (Equals(clientSubscriberViewModels, value))
-                {
-                    return;
-                }
-
-                clientSubscriberViewModels = value;
-
-                NotifyPropertyChanged(nameof(clientSubscriberViewModels));
-            }
-        }
+        public string ClientSub => $"{ClientName}_sub";
 
         private string GetClientName()
         {
@@ -309,13 +267,7 @@ namespace MQTTClient
 
         private void UpdateTopic(string topic, string paylod)
         {
-            foreach (var vm in ClientSubscriberViewModels)
-            {
-                if (CompareTopics(vm.Topic, topic))
-                {
-                    vm.Message = paylod;
-                }
-            }
+           
         }
 
         private bool CompareTopics(string localTopic, string receivedTopic)
@@ -353,7 +305,6 @@ namespace MQTTClient
             var mqttFactory = new MqttFactory();
 
             clientSubscriber = StartClientSubscriber(mqttFactory, Server, Port).Result;
-            clientPublisher = StartClientPublisher(mqttFactory, Server, Port).Result;
 
             IsConnected = true;
 
@@ -375,58 +326,6 @@ namespace MQTTClient
             clientPublisher = null;
 
             IsConnected = false;
-        }
-
-        private async Task<IManagedMqttClient> StartClientPublisher(MqttFactory factory, string server, int port)
-        {
-            var certs = GetCerts();
-            var tlsOptions = new MqttClientTlsOptions
-            {
-                UseTls = this.UseTls,
-                IgnoreCertificateChainErrors = true,
-                IgnoreCertificateRevocationErrors = true,
-                AllowUntrustedCertificates = true,
-                Certificates = certs,
-            };
-
-            var options = new MqttClientOptions
-            {
-                ClientId = ClientPub,
-                ProtocolVersion = MqttProtocolVersion.V311,
-                ChannelOptions = new MqttClientTcpOptions
-                {
-                    Server = server,
-                    Port = port,
-                    TlsOptions = tlsOptions
-                }
-            };
-
-            if (options.ChannelOptions == null)
-            {
-                throw new InvalidOperationException();
-            }
-
-            options.Credentials = new MqttClientCredentials
-            {
-                Username = UseAuth ? Username : "username",
-                Password = UseAuth ? Encoding.UTF8.GetBytes(pwBox.Password) : Encoding.UTF8.GetBytes("password")
-            };
-
-            options.CleanSession = true;
-            options.KeepAlivePeriod = TimeSpan.FromSeconds(5);
-
-
-            IManagedMqttClient managedMqttClientPublisher = factory.CreateManagedMqttClient();
-            managedMqttClientPublisher.UseApplicationMessageReceivedHandler(Client_HandleReceivedApplicationMessage);
-            managedMqttClientPublisher.ConnectedHandler = new MqttClientConnectedHandlerDelegate(Client_OnPublisherConnected);
-            managedMqttClientPublisher.DisconnectedHandler = new MqttClientDisconnectedHandlerDelegate(Client_OnPublisherDisconnected);
-            await managedMqttClientPublisher.StartAsync(
-                new ManagedMqttClientOptions
-                {
-                    ClientOptions = options
-                });
-
-            return managedMqttClientPublisher;
         }
 
         private async Task<IManagedMqttClient> StartClientSubscriber(MqttFactory factory, string server, int port)
@@ -501,69 +400,9 @@ namespace MQTTClient
             UpdateTopic(e.ApplicationMessage.Topic, e.ApplicationMessage.ConvertPayloadToString());
         }
 
-        private void Client_OnPublisherConnected(MqttClientConnectedEventArgs e)
-        {
-            log.Add($"{ClientPub} Connected");
-        }
-
-        private void Client_OnPublisherDisconnected(MqttClientDisconnectedEventArgs e)
-        {
-            log.Add($"{ClientPub} Disconnected");
-        }
-
-        private void Client_HandleReceivedApplicationMessage(MqttApplicationMessageReceivedEventArgs e)
-        {
-            var item = $"Timestamp: {DateTime.Now:O} | Topic: {e.ApplicationMessage.Topic} | Payload: {e.ApplicationMessage.ConvertPayloadToString()} | QoS: {e.ApplicationMessage.QualityOfServiceLevel}";
-
-            log.Add(item);
-        }
-
         private void Log_Updated(object sender, Log.LogEventArgs e)
         {
             LogContent = e.Log.ToString();
-        }
-
-        private void MiPublisherAdd_Click(object sender, RoutedEventArgs e)
-        {
-            ClientPublisherViewModel newVM = new ClientPublisherViewModel();
-            newVM.MessageChanged += PublisherVM_MessageChanged;
-
-            ClientPublisherViewModels.Add(newVM);
-        }
-
-        private void PublisherVM_MessageChanged(object sender, ClientPublisherViewModel.MessageChangedEventArgs e)
-        {
-            if (clientPublisher is null) { return; }
-
-            if (string.IsNullOrWhiteSpace(e.Topic)) { return; }
-            if (string.IsNullOrWhiteSpace(e.Message)) { return; }
-
-            clientPublisher?.PublishAsync(e.Topic, e.Message);
-        }
-
-        private void MiSubscriberAdd_Click(object sender, RoutedEventArgs e)
-        {
-            ClientSubscriberViewModel newVM = new ClientSubscriberViewModel();
-            newVM.TopicChanged += SubscriberVM_TopicChanged;
-
-            ClientSubscriberViewModels.Add(newVM);
-        }
-
-        private void SubscriberVM_TopicChanged(object sender, ClientSubscriberViewModel.TopicChangedEventArgs e)
-        {
-            if (clientSubscriber is null) { return; }
-
-            //Unsubscribe old
-            if (!string.IsNullOrWhiteSpace(e.OldTopic))
-            {
-                clientSubscriber.UnsubscribeAsync(e.OldTopic);
-            }
-
-            //Subscribe new
-            if (!string.IsNullOrWhiteSpace(e.NewTopic))
-            {
-                clientSubscriber.SubscribeAsync(e.NewTopic);
-            }
         }
 
         private void ButBrowseCert_Click(object sender, RoutedEventArgs e)

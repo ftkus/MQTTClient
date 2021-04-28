@@ -75,8 +75,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="BoolInverterValueConverter.cs" />
-    <Compile Include="ClientPublisherViewModel.cs" />
-    <Compile Include="ClientSubscriberViewModel.cs" />
     <Compile Include="Log.cs" />
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>

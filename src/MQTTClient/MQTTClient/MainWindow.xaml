@@ -30,6 +30,12 @@
             <Setter Property="Padding"
                     Value="4"/>
         </Style>
+        <Style TargetType="ListBox">
+            <Setter Property="Margin"
+                    Value="4"/>
+            <Setter Property="Padding"
+                    Value="4"/>
+        </Style>
         <Style TargetType="PasswordBox">
             <Setter Property="Margin"
                     Value="4"/>
@@ -59,12 +65,12 @@
 
         <local:BoolInverterValueConverter x:Key="boolInverterValueConverter"/>
     </Window.Resources>
-    
+
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="2*"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -84,7 +90,7 @@
                 <TextBlock Grid.Row="0"
                            Grid.Column="0"
                            Text="Server"/>
-                
+
                 <TextBox Grid.Row="0"
                          Grid.Column="1"
                          Text="{Binding Server}"
@@ -116,7 +122,7 @@
                             Click="ButDisconnect_OnClick"/>
 
                 </StackPanel>
-                
+
             </Grid>
         </GroupBox>
 
@@ -169,7 +175,7 @@
                         <RowDefinition/>
                         <RowDefinition/>
                     </Grid.RowDefinitions>
-                    
+
                     <TextBlock Grid.Row="0"
                                Grid.Column="0"
                                Text="Username"/>
@@ -189,74 +195,54 @@
             </Grid>
         </GroupBox>
 
-        <Grid Grid.Row="2">
+        <GroupBox Grid.Row="2"
+                  Header="Data">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition/>
-                    <ColumnDefinition/>
+                    <ColumnDefinition Width="2*"/>
+                    <ColumnDefinition Width="3*"/>
                 </Grid.ColumnDefinitions>
 
                 <GroupBox Grid.Column="0"
-                          Header="Publisher">
+                          Grid.Row="0"
+                          Header="Search Topic">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
 
-                        <DataGrid Grid.Row="1"
-                                  ItemsSource="{Binding ClientPublisherViewModels}"
-                                  CanUserAddRows="False"
-                                  CanUserReorderColumns="False"
-                                  AutoGenerateColumns="False">
-                            <DataGrid.ContextMenu>
-                                <ContextMenu>
-                                    <MenuItem Header="Add"
-                                          Click="MiPublisherAdd_Click"/>
-                                </ContextMenu>
-                            </DataGrid.ContextMenu>
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Topic"
-                                                    Width="50"
-                                                    Binding="{Binding Topic}"/>
-                                <DataGridTextColumn Header="Message"
-                                                    Width="*"
-                                                    Binding="{Binding Message}"/>
-                            </DataGrid.Columns>
+                        <TextBlock Grid.Row="0"
+                                   Grid.Column="0"
+                                   Text="Search Topic"/>
 
-                        </DataGrid>
+                        <TextBox Grid.Row="0"
+                                 Grid.Column="1"/>
+
+                        <TextBlock Grid.Row="1"
+                                   Grid.Column="0"
+                                   Grid.ColumnSpan="2"
+                                   Text="Available Tags"/>
+
+                        <ListBox Grid.Row="2"
+                                 Grid.Column="0"
+                                 Grid.ColumnSpan="2"/>
+
                     </Grid>
 
                 </GroupBox>
-                
+
                 <GroupBox Grid.Column="1"
-                          Header="Subscriber">
-                    <DataGrid ItemsSource="{Binding ClientSubscriberViewModels}"
-                              CanUserReorderColumns="False"
-                              CanUserAddRows="False"
-                              AutoGenerateColumns="False">
-                        <DataGrid.ContextMenu>
-                            <ContextMenu>
-                                <MenuItem Header="Add"
-                                          Click="MiSubscriberAdd_Click"/>
-                            </ContextMenu>
-                        </DataGrid.ContextMenu>
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Topic"
-                                                Width="50"
-                                                Binding="{Binding Topic}"/>
-                            <DataGridTextColumn Header="Message"
-                                                Width="*"
-                                                Binding="{Binding Message, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
-                                                IsReadOnly="True"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                    
-                    
-                </GroupBox>
+                          Grid.Row="0"
+                          Header="Subscribed Tags"/>
 
             </Grid>
-        </Grid>
+        </GroupBox>
 
         <GroupBox Grid.Row="3"
                   Header="Log">

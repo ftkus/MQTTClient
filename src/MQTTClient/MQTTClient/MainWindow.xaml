@@ -236,6 +236,7 @@
                                  Grid.ColumnSpan="2"
                                  ItemsSource="{Binding Tags}"
                                  SelectedItem="{Binding SelectedTag}"
+                                 DisplayMemberPath="Display"
                                  MouseDoubleClick="ListBox_MouseDoubleClick"/>
 
                     </Grid>
@@ -275,6 +276,7 @@
         <GroupBox Grid.Row="3"
                   Header="Log">
             <TextBox IsReadOnly="True"
+                     x:Name="logListBox"
                      Text="{Binding LogContent, Mode=TwoWay}"
                      HorizontalScrollBarVisibility="Auto"
                      VerticalScrollBarVisibility="Auto"/>

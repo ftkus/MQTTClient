@@ -67,11 +67,11 @@ namespace MQTTClient
 
         private string searchTopic;
 
-        private ObservableCollection<string> tags;
+        private ObservableCollection<TagTopicViewModel> tags;
 
         private ObservableCollection<TagValueViewModel> tagValueViewModels;
 
-        private string selectedTag;
+        private TagTopicViewModel selectedTag;
 
         public MainWindow()
         {
@@ -80,7 +80,7 @@ namespace MQTTClient
             log = new Log();
             log.Updated += Log_Updated;
 
-            Tags = new ObservableCollection<string>();
+            Tags = new ObservableCollection<TagTopicViewModel>();
 
             TagValueViewModels = new ObservableCollection<TagValueViewModel>();
 
@@ -274,7 +274,7 @@ namespace MQTTClient
             }
         }
 
-        public string SelectedTag
+        public TagTopicViewModel SelectedTag
         {
             get
             {
@@ -290,7 +290,7 @@ namespace MQTTClient
             }
         }
 
-        public ObservableCollection<string> Tags
+        public ObservableCollection<TagTopicViewModel> Tags
         {
             get
             {
@@ -333,25 +333,46 @@ namespace MQTTClient
             return certs;
         }
 
-        private void UpdateTopicTags(string payload)
+        private void UpdateTopicTags(string topic, string payload)
         {
             object deserializedObject = JsonConvert.DeserializeObject<Message>(payload);
 
             if (deserializedObject is Message msg)
             {
-                IEnumerable<string> tags = msg.Tags.Select(d => d.Key);
-
-                if (tags.SequenceEqual(Tags)) { return; }
-
-                var newTags = tags.Except(Tags).ToArray();
-
-                Tags = new ObservableCollection<string>(tags);
-
-                foreach(var s in newTags)
+                foreach(var m in msg.Tags)
                 {
-                    log.Add($"{DateTime.Now}: New tag found for topic: {s}");
+                    if (Tags.Any(t => t.Topic == topic && t.Tag == m.Key))
+                    {
+                        continue;
+                    }
+
+                    Dispatcher.Invoke(() => Tags.Add(new TagTopicViewModel(topic, m.Key)));
                 }
             }
+        }
+
+        private bool CompareTopics(string localTopic, string receivedTopic)
+        {
+            const char TopicLevelSeparator = '/';
+            const string Wildcard = "#";
+
+            string[] localTopicArray = localTopic.Split(TopicLevelSeparator);
+            string[] receivedTopicArray = receivedTopic.Split(TopicLevelSeparator);
+
+            for (int i = 0; i < receivedTopicArray.Length; i++)
+            {
+                if (localTopicArray.Length <= i) { return false; }
+
+                if (string.Equals(localTopicArray[i], Wildcard)) { return true; }
+
+                if (string.Equals(localTopicArray[i], receivedTopicArray[i]))
+                {
+                    continue;
+                }
+
+                return false;
+            }
+            return true;
         }
 
         private void UpdateData(string topic, string payload)
@@ -399,7 +420,7 @@ namespace MQTTClient
                 }
             }
 
-            Tags = new ObservableCollection<string>();
+            Tags = new ObservableCollection<TagTopicViewModel>();
         }
 
         private void AddTag(string topic, string tag)
@@ -423,6 +444,8 @@ namespace MQTTClient
             };
 
             TagValueViewModels.Add(tvvm);
+
+            log.Add($"{DateTime.Now}: Subscribed to item {tag} on topic {topic}");
         }
 
         private void NotifyPropertyChanged(string propertyName)
@@ -521,12 +544,9 @@ namespace MQTTClient
 
         private void Client_OnSubscriberMessageReceived(MqttApplicationMessageReceivedEventArgs e)
         {
-            //var item = $"Timestamp: {DateTime.Now:O} | Topic: {e.ApplicationMessage.Topic} | Payload: {e.ApplicationMessage.ConvertPayloadToString()} | QoS: {e.ApplicationMessage.QualityOfServiceLevel}";
-            //log.Add(item);
-
-            if (e.ApplicationMessage.Topic == SearchTopic)
+            if (CompareTopics(SearchTopic, e.ApplicationMessage.Topic))
             {
-                UpdateTopicTags(e.ApplicationMessage.ConvertPayloadToString());
+                UpdateTopicTags(e.ApplicationMessage.Topic, e.ApplicationMessage.ConvertPayloadToString());
             }
 
             UpdateData(e.ApplicationMessage.Topic, e.ApplicationMessage.ConvertPayloadToString());
@@ -535,6 +555,7 @@ namespace MQTTClient
         private void Log_Updated(object sender, Log.LogEventArgs e)
         {
             LogContent = e.Log.ToString();
+            Dispatcher.Invoke(() => logListBox.ScrollToEnd());
         }
 
         private void ButBrowseCert_Click(object sender, RoutedEventArgs e)
@@ -553,7 +574,9 @@ namespace MQTTClient
 
         private void ListBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            AddTag(SearchTopic, SelectedTag);
+            if (SelectedTag is null) { return; }
+
+            AddTag(SelectedTag.Topic, SelectedTag.Tag);
         }
     }
 }

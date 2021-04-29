@@ -100,6 +100,16 @@ namespace MQTTClient
             MyModel = new PlotModel { Title = "Data Preview" };
 
             InitializeComponent();
+
+            Timer chartTimer = new Timer();
+            chartTimer.Elapsed += ChartTimer_OnElapsed;
+            chartTimer.Interval = 5000;
+            chartTimer.Start();
+        }
+
+        private void ChartTimer_OnElapsed(object sender, ElapsedEventArgs e)
+        {
+            Dispatcher?.Invoke(() => plot.InvalidatePlot());
         }
 
         public string LogContent

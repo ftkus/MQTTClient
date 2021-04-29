@@ -278,7 +278,8 @@
                         <TabItem Header="Chart"
                                  MinWidth="100"
                                  x:Name="TIChart">
-                            <oxy:PlotView Model="{Binding MyModel}"/>
+                            <oxy:PlotView Model="{Binding MyModel}"
+                                          x:Name="plot"/>
 
                         </TabItem>
 

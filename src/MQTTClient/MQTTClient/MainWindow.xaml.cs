@@ -36,6 +36,7 @@ using Newtonsoft.Json;
 
 using OxyPlot;
 using OxyPlot.Series;
+using DataPoint = OxyPlot.DataPoint;
 
 namespace MQTTClient
 {
@@ -75,6 +76,8 @@ namespace MQTTClient
         private ObservableCollection<TagValueViewModel> tagValueViewModels;
 
         private TagTopicViewModel selectedTag;
+
+        private DateTime? firstTimeStamp = null;
 
         public MainWindow()
         {
@@ -396,7 +399,20 @@ namespace MQTTClient
                         {
                             if (tvvm.Tag == tag.Key)
                             {
-                                tvvm.Update(tag.Value, tvvm.Timestamp;
+                                if (firstTimeStamp is null)
+                                {
+                                    firstTimeStamp = msg.Timestamp;
+                                }
+
+                                tvvm.Update(tag.Value, msg.Timestamp);
+
+                                foreach (var s in MyModel.Series)
+                                {
+                                    if (s.Tag == tvvm)
+                                    {
+                                        ((LineSeries) s).Points.Add(new DataPoint((msg.Timestamp - firstTimeStamp.Value).TotalSeconds, tag.Value));
+                                    }
+                                }
                             }
                         }
                     }
@@ -448,6 +464,12 @@ namespace MQTTClient
                 Tag = tag,
                 Topic = topic,
             };
+
+            var ls = new LineSeries();
+            ls.Tag = tvvm;
+            ls.Title = tag;
+
+            MyModel.Series.Add(ls);
 
             TagValueViewModels.Add(tvvm);
 

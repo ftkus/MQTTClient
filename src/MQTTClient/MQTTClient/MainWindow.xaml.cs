@@ -34,6 +34,10 @@ using System.Security.Cryptography.X509Certificates;
 using MQTTClient.Data;
 using Newtonsoft.Json;
 
+using OxyPlot;
+using OxyPlot.Series;
+using DataPoint = OxyPlot.DataPoint;
+
 namespace MQTTClient
 {
     /// <summary>
@@ -73,6 +77,8 @@ namespace MQTTClient
 
         private TagTopicViewModel selectedTag;
 
+        private DateTime? firstTimeStamp = null;
+
         public MainWindow()
         {
             ClientName = GetClientName();
@@ -91,7 +97,19 @@ namespace MQTTClient
             UseAuth = Properties.Settings.Default.UseAuth;
             Username = Properties.Settings.Default.Username;
 
+            MyModel = new PlotModel { Title = "Data Preview" };
+
             InitializeComponent();
+
+            Timer chartTimer = new Timer();
+            chartTimer.Elapsed += ChartTimer_OnElapsed;
+            chartTimer.Interval = 5000;
+            chartTimer.Start();
+        }
+
+        private void ChartTimer_OnElapsed(object sender, ElapsedEventArgs e)
+        {
+            Dispatcher?.Invoke(() => plot.InvalidatePlot());
         }
 
         public string LogContent
@@ -308,6 +326,8 @@ namespace MQTTClient
 
         public string ClientSub => $"{ClientName}_sub";
 
+        public PlotModel MyModel { get; private set; }
+
         private string GetClientName()
         {
             string cpuInfo = string.Empty;
@@ -389,8 +409,20 @@ namespace MQTTClient
                         {
                             if (tvvm.Tag == tag.Key)
                             {
-                                tvvm.Value = tag.Value;
-                                tvvm.Timestamp = msg.Timestamp;
+                                if (firstTimeStamp is null)
+                                {
+                                    firstTimeStamp = msg.Timestamp;
+                                }
+
+                                tvvm.Update(tag.Value, msg.Timestamp);
+
+                                foreach (var s in MyModel.Series)
+                                {
+                                    if (s.Tag == tvvm)
+                                    {
+                                        ((LineSeries) s).Points.Add(new DataPoint((msg.Timestamp - firstTimeStamp.Value).TotalSeconds, tag.Value));
+                                    }
+                                }
                             }
                         }
                     }
@@ -443,6 +475,12 @@ namespace MQTTClient
                 Topic = topic,
             };
 
+            var ls = new LineSeries();
+            ls.Tag = tvvm;
+            ls.Title = tag;
+
+            MyModel.Series.Add(ls);
+
             TagValueViewModels.Add(tvvm);
 
             log.Add($"{DateTime.Now}: Subscribed to item {tag} on topic {topic}");
@@ -458,6 +496,11 @@ namespace MQTTClient
             var mqttFactory = new MqttFactory();
 
             clientSubscriber = StartClientSubscriber(mqttFactory, Server, Port).Result;
+
+            if (clientSubscriber is null)
+            {
+                return;
+            }
 
             IsConnected = true;
 
@@ -481,7 +524,6 @@ namespace MQTTClient
 
         private async Task<IManagedMqttClient> StartClientSubscriber(MqttFactory factory, string server, int port)
         {
-            var certs = GetCerts();
 
             var tlsOptions = new MqttClientTlsOptions
             {
@@ -489,8 +531,22 @@ namespace MQTTClient
                 IgnoreCertificateChainErrors = true,
                 IgnoreCertificateRevocationErrors = true,
                 AllowUntrustedCertificates = true,
-                Certificates = certs,
             };
+
+            try
+            {
+                if (UseTls)
+                {
+                    var certs = GetCerts();
+                    tlsOptions.Certificates = certs;
+                }
+            }
+            catch (Exception ex)
+            {
+                log.Add($"{DateTime.Now}: Invalid certificate: {ex.Message}");
+
+                return null;
+            }
 
             var options = new MqttClientOptions
             {

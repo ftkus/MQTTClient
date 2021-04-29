@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:MQTTClient"
+        xmlns:oxy="http://oxyplot.org/wpf"
         x:Name="win"
         DataContext="{Binding ElementName=win}"
         mc:Ignorable="d"
@@ -246,28 +247,44 @@
                 <GroupBox Grid.Column="1"
                           Grid.Row="0"
                           Header="Subscribed Tags">
-                    <DataGrid ItemsSource="{Binding TagValueViewModels}"
-                              AutoGenerateColumns="False"
-                              CanUserReorderColumns="False"
-                              CanUserAddRows="False"
-                              CanUserDeleteRows="False"
-                              Margin="4">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Timestamp"
-                                                IsReadOnly="True"
-                                                Width="120"
-                                                Binding="{Binding Timestamp}"/>
-                            <DataGridTextColumn Header="Tag"
-                                                IsReadOnly="True"
-                                                Width="120"
-                                                Binding="{Binding Tag}"/>
-                            <DataGridTextColumn Header="Value"
-                                                IsReadOnly="True"
-                                                Width="*"
-                                                Binding="{Binding Value}"/>
-                        </DataGrid.Columns>
+                    <TabControl>
+                        <TabItem Header="Table"
+                                 MinWidth="100"
+                                 x:Name="TITable">
+                            <DataGrid ItemsSource="{Binding TagValueViewModels}"
+                                      AutoGenerateColumns="False"
+                                      CanUserReorderColumns="False"
+                                      CanUserAddRows="False"
+                                      CanUserDeleteRows="False"
+                                      Margin="4">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Timestamp"
+                                                        IsReadOnly="True"
+                                                        Width="120"
+                                                        Binding="{Binding Timestamp}"/>
+                                    <DataGridTextColumn Header="Tag"
+                                                        IsReadOnly="True"
+                                                        Width="120"
+                                                        Binding="{Binding Tag}"/>
+                                    <DataGridTextColumn Header="Value"
+                                                        IsReadOnly="True"
+                                                        Width="*"
+                                                        Binding="{Binding Value}"/>
+                                </DataGrid.Columns>
                         
-                    </DataGrid>
+                            </DataGrid>
+                        </TabItem>
+
+                        <TabItem Header="Chart"
+                                 MinWidth="100"
+                                 x:Name="TIChart">
+                            <oxy:PlotView Model="{Binding MyModel}"
+                                          x:Name="plot"/>
+
+                        </TabItem>
+
+                    </TabControl>
+                  
                 </GroupBox>
 
             </Grid>

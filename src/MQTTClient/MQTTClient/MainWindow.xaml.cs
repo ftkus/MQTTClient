@@ -465,6 +465,11 @@ namespace MQTTClient
 
             clientSubscriber = StartClientSubscriber(mqttFactory, Server, Port).Result;
 
+            if (clientSubscriber is null)
+            {
+                return;
+            }
+
             IsConnected = true;
 
             Properties.Settings.Default.Port = Port;
@@ -487,7 +492,6 @@ namespace MQTTClient
 
         private async Task<IManagedMqttClient> StartClientSubscriber(MqttFactory factory, string server, int port)
         {
-            var certs = GetCerts();
 
             var tlsOptions = new MqttClientTlsOptions
             {
@@ -495,8 +499,22 @@ namespace MQTTClient
                 IgnoreCertificateChainErrors = true,
                 IgnoreCertificateRevocationErrors = true,
                 AllowUntrustedCertificates = true,
-                Certificates = certs,
             };
+
+            try
+            {
+                if (UseTls)
+                {
+                    var certs = GetCerts();
+                    tlsOptions.Certificates = certs;
+                }
+            }
+            catch (Exception ex)
+            {
+                log.Add($"{DateTime.Now}: Invalid certificate: {ex.Message}");
+
+                return null;
+            }
 
             var options = new MqttClientOptions
             {

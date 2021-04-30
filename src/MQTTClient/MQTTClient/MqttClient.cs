@@ -50,7 +50,7 @@ namespace MQTTClient
 
             tlsOptions = new MqttClientTlsOptions
             {
-                UseTls = true,
+                UseTls = false,
                 IgnoreCertificateChainErrors = true,
                 IgnoreCertificateRevocationErrors = true,
                 AllowUntrustedCertificates = true,

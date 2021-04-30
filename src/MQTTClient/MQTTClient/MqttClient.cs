@@ -115,6 +115,42 @@ namespace MQTTClient
             }
         }
 
+        public async void Stop()
+        {
+            try
+            {
+                await subscriber?.StopAsync();
+            }
+            catch (NullReferenceException)
+            {
+                //Do nothing
+            }
+        }
+
+        public async void Subscribe(string topic)
+        {
+            try
+            {
+                await subscriber?.SubscribeAsync(topic);
+            }
+            catch (NullReferenceException)
+            {
+                //Do nothing
+            }
+        }
+
+        public async void Unsubscribe(string topic)
+        {
+            try
+            {
+                await subscriber?.UnsubscribeAsync(topic);
+            }
+            catch (NullReferenceException)
+            {
+                //Do nothing
+            }
+        }
+
         private void Client_OnSubscriberConnected(MqttClientConnectedEventArgs e)
         {
             log.Add($"{name} Connected");

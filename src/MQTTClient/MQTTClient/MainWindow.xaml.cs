@@ -65,7 +65,6 @@ namespace MQTTClient
         private string dbOrg;
         private string dbBucket;
         private string dbToken;
-        private IManagedMqttClient clientSubscriber;
         private MqttClient client;
         private Log log;
 
@@ -527,7 +526,7 @@ namespace MQTTClient
             {
                 if (!TagValueViewModels.Any(t => t.Topic == oldTopic))
                 {
-                    await clientSubscriber?.UnsubscribeAsync(oldTopic);
+                    client.Unsubscribe(oldTopic);
 
                     log.Add($"{DateTime.Now}: Unsubscribed from topic {oldTopic}");
                 }
@@ -537,7 +536,7 @@ namespace MQTTClient
             {
                 if (!TagValueViewModels.Any(t => t.Topic == SearchTopic))
                 {
-                    await clientSubscriber?.SubscribeAsync(SearchTopic);
+                    client.Subscribe(SearchTopic);
 
                     log.Add($"{DateTime.Now}: Subscribed to topic {SearchTopic}");
                 }
@@ -641,9 +640,9 @@ namespace MQTTClient
 
         private async void ButDisconnect_OnClick(object sender, RoutedEventArgs e)
         {
-            await clientSubscriber?.StopAsync();
+            client.Stop();
 
-            clientSubscriber = null;
+            client = null;
 
             IsConnected = false;
         }

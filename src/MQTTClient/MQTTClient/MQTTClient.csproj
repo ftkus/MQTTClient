@@ -153,6 +153,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="DataBase.cs" />
     <Compile Include="Data\DataPoint.cs" />
     <Compile Include="Data\DataSet.cs" />
     <Compile Include="Data\Message.cs" />

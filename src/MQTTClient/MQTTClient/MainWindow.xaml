@@ -63,6 +63,18 @@
             <Setter Property="Padding"
                     Value="4"/>
         </Style>
+        <Style TargetType="ToggleButton">
+            <Style.Resources>
+                <Style TargetType="Border">
+                    <Setter Property="CornerRadius"
+                            Value="10"/>
+                </Style>
+            </Style.Resources>
+            <Setter Property="Margin"
+                    Value="4"/>
+            <Setter Property="Padding"
+                    Value="4"/>
+        </Style>
 
         <local:BoolInverterValueConverter x:Key="boolInverterValueConverter"/>
     </Window.Resources>
@@ -79,6 +91,7 @@
                   Header="Server">
             <Grid>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition/>
@@ -107,8 +120,79 @@
                          Text="{Binding Port}"
                          IsEnabled="{Binding IsConnected, Converter={StaticResource boolInverterValueConverter}}"/>
 
+                <GroupBox Grid.Row="2"
+                          Grid.Column="0"
+                          Grid.ColumnSpan="2"
+                          Header="Authentication"
+                          IsEnabled="{Binding IsConnected, Converter={StaticResource boolInverterValueConverter}}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                
+                        <CheckBox Grid.Row="0"
+                                  Grid.Column="0"
+                                  Content="Use TLS"
+                                  IsChecked="{Binding UseTls}"/>
+                
+                        <TextBox Grid.Row="0"
+                                 Grid.Column="1"
+                                 IsReadOnly="True"
+                                 IsEnabled="{Binding UseTls}"
+                                 Text="{Binding CertPath}"/>
+                
+                        <Button Grid.Row="0"
+                                Grid.Column="2"
+                                 IsEnabled="{Binding UseTls}"
+                                Content="Browse"
+                                Click="ButBrowseCert_Click"/>
+                
+                        <CheckBox Grid.Row="1"
+                                  Grid.Column="0"
+                                  Content="Use Authentication"
+                                  IsChecked="{Binding UseAuth}"/>
+                
+                        <Grid Grid.Row="1"
+                              Grid.Column="1"
+                              Grid.ColumnSpan="2"
+                              IsEnabled="{Binding UseAuth}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                            </Grid.RowDefinitions>
+                
+                            <TextBlock Grid.Row="0"
+                                       Grid.Column="0"
+                                       Text="Username"/>
+                            <TextBox Grid.Row="0"
+                                     Grid.Column="1"
+                                     Text="{Binding Username}"/>
+                
+                            <TextBlock Grid.Row="1"
+                                       Grid.Column="0"
+                                       Text="Password"/>
+                            <PasswordBox Grid.Row="1"
+                                         Grid.Column="1"
+                                         x:Name="pwBox"/>
+                
+                        </Grid>
+                
+                    </Grid>
+                </GroupBox>
 
-                <StackPanel Grid.Row="2"
+
+                <StackPanel Grid.Row="3"
                             Grid.Column="0"
                             Grid.ColumnSpan="2"
                             Orientation="Horizontal"
@@ -128,10 +212,12 @@
         </GroupBox>
 
         <GroupBox Grid.Row="1"
-                  Header="Authentication"
-                  IsEnabled="{Binding IsConnected, Converter={StaticResource boolInverterValueConverter}}">
+                  Header="InfluxDB">
             <Grid>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -139,59 +225,66 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <CheckBox Grid.Row="0"
-                          Grid.Column="0"
-                          Content="Use TLS"
-                          IsChecked="{Binding UseTls}"/>
+                <TextBlock Grid.Row="0"
+                           Grid.Column="0"
+                           Text="Address"/>
 
                 <TextBox Grid.Row="0"
                          Grid.Column="1"
-                         IsReadOnly="True"
-                         IsEnabled="{Binding UseTls}"
-                         Text="{Binding CertPath}"/>
+                         Text="{Binding DBAddress}"
+                         IsEnabled="{Binding IsDBConnected, Converter={StaticResource boolInverterValueConverter}}"/>
 
-                <Button Grid.Row="0"
-                        Grid.Column="2"
-                         IsEnabled="{Binding UseTls}"
-                        Content="Browse"
-                        Click="ButBrowseCert_Click"/>
+                <TextBlock Grid.Row="1"
+                           Grid.Column="0"
+                           Text="Port"/>
 
-                <CheckBox Grid.Row="1"
-                          Grid.Column="0"
-                          Content="Use Authentication"
-                          IsChecked="{Binding UseAuth}"/>
+                <TextBox Grid.Row="1"
+                         Grid.Column="1"
+                         Text="{Binding DBPort}"
+                         IsEnabled="{Binding IsDBConnected, Converter={StaticResource boolInverterValueConverter}}"/>
 
-                <Grid Grid.Row="1"
-                      Grid.Column="1"
-                      Grid.ColumnSpan="2"
-                      IsEnabled="{Binding UseAuth}">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition/>
-                        <RowDefinition/>
-                    </Grid.RowDefinitions>
+                <TextBlock Grid.Row="2"
+                           Grid.Column="0"
+                           Text="Token"/>
 
-                    <TextBlock Grid.Row="0"
-                               Grid.Column="0"
-                               Text="Username"/>
-                    <TextBox Grid.Row="0"
-                             Grid.Column="1"
-                             Text="{Binding Username}"/>
+                <TextBox Grid.Row="2"
+                         Grid.Column="1"
+                         Text="{Binding DBToken}"
+                         IsEnabled="{Binding IsDBConnected, Converter={StaticResource boolInverterValueConverter}}"/>
 
-                    <TextBlock Grid.Row="1"
-                               Grid.Column="0"
-                               Text="Password"/>
-                    <PasswordBox Grid.Row="1"
-                                 Grid.Column="1"
-                                 x:Name="pwBox"/>
+                <TextBlock Grid.Row="3"
+                           Grid.Column="0"
+                           Text="Organisation"/>
 
-                </Grid>
+                <TextBox Grid.Row="3"
+                         Grid.Column="1"
+                         Text="{Binding DBOrg}"
+                         IsEnabled="{Binding IsDBConnected, Converter={StaticResource boolInverterValueConverter}}"/>
+
+                <TextBlock Grid.Row="4"
+                           Grid.Column="0"
+                           Text="Bucket"/>
+
+                <TextBox Grid.Row="4"
+                         Grid.Column="1"
+                         Text="{Binding DBBucket}"
+                         IsEnabled="{Binding IsDBConnected, Converter={StaticResource boolInverterValueConverter}}"/>
+
+                <StackPanel Grid.Row="5"
+                            Grid.Column="0"
+                            Grid.ColumnSpan="2"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="right">
+                    <Button Content="Connect"
+                            IsEnabled="{Binding IsDBConnected, Converter={StaticResource boolInverterValueConverter}}"
+                            Click="ButDBConnect_OnClick"/>
+                    <Button Content="Disconnect"
+                            IsEnabled="{Binding IsDBConnected}"
+                            Click="ButDBDisconnect_OnClick"/>
+                </StackPanel>
+
 
             </Grid>
         </GroupBox>
@@ -247,44 +340,29 @@
                 <GroupBox Grid.Column="1"
                           Grid.Row="0"
                           Header="Subscribed Tags">
-                    <TabControl>
-                        <TabItem Header="Table"
-                                 MinWidth="100"
-                                 x:Name="TITable">
-                            <DataGrid ItemsSource="{Binding TagValueViewModels}"
-                                      AutoGenerateColumns="False"
-                                      CanUserReorderColumns="False"
-                                      CanUserAddRows="False"
-                                      CanUserDeleteRows="False"
-                                      Margin="4">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Timestamp"
-                                                        IsReadOnly="True"
-                                                        Width="120"
-                                                        Binding="{Binding Timestamp}"/>
-                                    <DataGridTextColumn Header="Tag"
-                                                        IsReadOnly="True"
-                                                        Width="120"
-                                                        Binding="{Binding Tag}"/>
-                                    <DataGridTextColumn Header="Value"
-                                                        IsReadOnly="True"
-                                                        Width="*"
-                                                        Binding="{Binding Value}"/>
-                                </DataGrid.Columns>
-                        
-                            </DataGrid>
-                        </TabItem>
-
-                        <TabItem Header="Chart"
-                                 MinWidth="100"
-                                 x:Name="TIChart">
-                            <oxy:PlotView Model="{Binding MyModel}"
-                                          x:Name="plot"/>
-
-                        </TabItem>
-
-                    </TabControl>
-                  
+                    
+                    <DataGrid ItemsSource="{Binding TagValueViewModels}"
+                              AutoGenerateColumns="False"
+                              CanUserReorderColumns="False"
+                              CanUserAddRows="False"
+                              CanUserDeleteRows="False"
+                              Margin="4">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Timestamp"
+                                                IsReadOnly="True"
+                                                Width="120"
+                                                Binding="{Binding Timestamp}"/>
+                            <DataGridTextColumn Header="Tag"
+                                                IsReadOnly="True"
+                                                Width="120"
+                                                Binding="{Binding Tag}"/>
+                            <DataGridTextColumn Header="Value"
+                                                IsReadOnly="True"
+                                                Width="*"
+                                                Binding="{Binding Value}"/>
+                        </DataGrid.Columns>
+                
+                    </DataGrid>
                 </GroupBox>
 
             </Grid>

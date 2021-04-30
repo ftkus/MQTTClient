@@ -37,6 +37,7 @@ using Newtonsoft.Json;
 using OxyPlot;
 using OxyPlot.Series;
 using DataPoint = OxyPlot.DataPoint;
+using MessageBox = System.Windows.Forms.MessageBox;
 
 namespace MQTTClient
 {
@@ -48,36 +49,32 @@ namespace MQTTClient
         public event PropertyChangedEventHandler PropertyChanged;
 
         private bool isConnected;
-
-        private string server;
-
-        private int port;
-
+        private bool isDBConnected;
         private bool useTls;
-
         private bool useAuth;
-
+        private int port;
+        private int dbPort;
         private string username;
-
         private string certPath;
-
+        private string server;
+        private string logContent;
+        private string clientName;
+        private string searchTopic;
+        private string dbAddress;
+        private string dbOrg;
+        private string dbBucket;
+        private string dbToken;
         private IManagedMqttClient clientSubscriber;
-
         private Log log;
 
-        private string logContent;
-
-        private string clientName;
-
-        private string searchTopic;
-
         private ObservableCollection<TagTopicViewModel> tags;
-
         private ObservableCollection<TagValueViewModel> tagValueViewModels;
 
         private TagTopicViewModel selectedTag;
 
         private DateTime? firstTimeStamp = null;
+
+        private DataBase influxDB;
 
         public MainWindow()
         {
@@ -96,20 +93,13 @@ namespace MQTTClient
             UseTls = Properties.Settings.Default.UseTls;
             UseAuth = Properties.Settings.Default.UseAuth;
             Username = Properties.Settings.Default.Username;
-
-            MyModel = new PlotModel { Title = "Data Preview" };
+            DBAddress = Properties.Settings.Default.DBAddress;
+            DBPort = Properties.Settings.Default.DBPort;
+            DBOrg = Properties.Settings.Default.DBOrg;
+            DBBucket = Properties.Settings.Default.DBBucket;
+            DBToken = Properties.Settings.Default.DBToken;
 
             InitializeComponent();
-
-            Timer chartTimer = new Timer();
-            chartTimer.Elapsed += ChartTimer_OnElapsed;
-            chartTimer.Interval = 5000;
-            chartTimer.Start();
-        }
-
-        private void ChartTimer_OnElapsed(object sender, ElapsedEventArgs e)
-        {
-            Dispatcher?.Invoke(() => plot.InvalidatePlot());
         }
 
         public string LogContent
@@ -141,6 +131,87 @@ namespace MQTTClient
                 clientName = value;
 
                 NotifyPropertyChanged(nameof(ClientName));
+            }
+        }
+
+        public string DBAddress
+        {
+            get
+            {
+                return dbAddress;
+            }
+            set
+            {
+                if (Equals(value, dbAddress)) { return; }
+
+                dbAddress = value;
+
+                NotifyPropertyChanged(nameof(DBAddress));
+            }
+        }
+
+        
+        public int DBPort
+        {
+            get
+            {
+                return dbPort;
+            }
+            set
+            {
+                if (Equals(value, dbPort)) { return; }
+
+                dbPort = value;
+
+                NotifyPropertyChanged(nameof(DBPort));
+            }
+        }
+
+        public string DBToken
+        {
+            get
+            {
+                return dbToken;
+            }
+            set
+            {
+                if (Equals(value, dbToken)) { return; }
+
+                dbToken = value;
+
+                NotifyPropertyChanged(nameof(DBToken));
+            }
+        }
+
+        public string DBOrg
+        {
+            get
+            {
+                return dbOrg;
+            }
+            set
+            {
+                if (Equals(value, dbOrg)) { return; }
+
+                dbOrg = value;
+
+                NotifyPropertyChanged(nameof(DBOrg));
+            }
+        }
+
+        public string DBBucket
+        {
+            get
+            {
+                return dbBucket;
+            }
+            set
+            {
+                if (Equals(value, dbBucket)) { return; }
+
+                dbBucket = value;
+
+                NotifyPropertyChanged(nameof(DBBucket));
             }
         }
 
@@ -189,6 +260,22 @@ namespace MQTTClient
                 isConnected = value;
 
                 NotifyPropertyChanged(nameof(IsConnected));
+            }
+        }
+
+        public bool IsDBConnected
+        {
+            get
+            {
+                return isDBConnected;
+            }
+            set
+            {
+                if (Equals(value, isDBConnected)) { return; }
+
+                isDBConnected = value;
+
+                NotifyPropertyChanged(nameof(IsDBConnected));
             }
         }
 
@@ -326,8 +413,6 @@ namespace MQTTClient
 
         public string ClientSub => $"{ClientName}_sub";
 
-        public PlotModel MyModel { get; private set; }
-
         private string GetClientName()
         {
             string cpuInfo = string.Empty;
@@ -415,17 +500,21 @@ namespace MQTTClient
                                 }
 
                                 tvvm.Update(tag.Value, msg.Timestamp);
-
-                                foreach (var s in MyModel.Series)
-                                {
-                                    if (s.Tag == tvvm)
-                                    {
-                                        ((LineSeries) s).Points.Add(new DataPoint((msg.Timestamp - firstTimeStamp.Value).TotalSeconds, tag.Value));
-                                    }
-                                }
                             }
                         }
                     }
+                }
+
+                if (IsDBConnected)
+                {
+                    var pointData = influxDB.GetPointData(topic, msg.Timestamp);
+
+                    foreach (var tag in msg.Tags)
+                    {
+                        pointData = influxDB.AppendFieldValue(pointData, tag.Key, tag.Value);
+                    }
+
+                    influxDB.Write(DBBucket, DBOrg, pointData);
                 }
             }
         }
@@ -469,17 +558,7 @@ namespace MQTTClient
 
             if (TagValueViewModels.Any(t => t.Tag == tag && t.Topic == topic)) { return; }
 
-            var tvvm = new TagValueViewModel()
-            {
-                Tag = tag,
-                Topic = topic,
-            };
-
-            var ls = new LineSeries();
-            ls.Tag = tvvm;
-            ls.Title = tag;
-
-            MyModel.Series.Add(ls);
+            var tvvm = new TagValueViewModel(tag, topic);
 
             TagValueViewModels.Add(tvvm);
 
@@ -633,6 +712,58 @@ namespace MQTTClient
             if (SelectedTag is null) { return; }
 
             AddTag(SelectedTag.Topic, SelectedTag.Tag);
+        }
+
+        private void ButDBConnect_OnClick(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(DBAddress))
+            {
+                MessageBox.Show("Invalid InfluxDB parameters");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(DBOrg))
+            {
+                MessageBox.Show("Invalid InfluxDB parameters");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(DBBucket))
+            {
+                MessageBox.Show("Invalid InfluxDB parameters");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(DBToken))
+            {
+                MessageBox.Show("Invalid InfluxDB parameters");
+                return;
+            }
+
+            if (DBPort < 1024 || DBPort > 65535)
+            {
+                MessageBox.Show("Invalid InfluxDB parameters");
+                return;
+            }
+
+            influxDB = new DataBase(DBAddress, DBPort, DBToken);
+
+            Properties.Settings.Default.DBAddress = DBAddress;
+            Properties.Settings.Default.DBPort = DBPort;
+            Properties.Settings.Default.DBBucket = DBBucket;
+            Properties.Settings.Default.DBOrg = DBOrg;
+            Properties.Settings.Default.DBToken = DBToken;
+            Properties.Settings.Default.Save();
+
+            IsDBConnected = true;
+        }
+
+        private void ButDBDisconnect_OnClick(object sender, RoutedEventArgs e)
+        {
+            influxDB?.Diconnect();
+            influxDB = null;
+
+            IsDBConnected = false;
         }
     }
 }

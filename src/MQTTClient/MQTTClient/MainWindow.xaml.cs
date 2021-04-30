@@ -32,6 +32,7 @@ using System.Timers;
 using System.Security.Cryptography.X509Certificates;
 
 using MQTTClient.Data;
+using MQTTClient.Properties;
 using Newtonsoft.Json;
 
 using OxyPlot;
@@ -65,6 +66,7 @@ namespace MQTTClient
         private string dbBucket;
         private string dbToken;
         private IManagedMqttClient clientSubscriber;
+        private MqttClient client;
         private Log log;
 
         private ObservableCollection<TagTopicViewModel> tags;
@@ -574,10 +576,55 @@ namespace MQTTClient
         {
             var mqttFactory = new MqttFactory();
 
-            clientSubscriber = StartClientSubscriber(mqttFactory, Server, Port).Result;
-
-            if (clientSubscriber is null)
+            if (string.IsNullOrWhiteSpace(server))
             {
+                MessageBox.Show("Invalid Mqtt Server");
+                return;
+            }
+
+            if (port < 1024 || port > 65535)
+            {
+                MessageBox.Show("Invalid Mqtt Port");
+                return;
+            }
+
+            client = new MqttClient(ClientSub, server, port, log);
+
+            if (UseAuth)
+            {
+                client.UseAuthentication(Username, pwBox.Password);
+            }
+
+            if (UseTls)
+            {
+                try
+                {
+                    client.UseTls(GetCerts());
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Invalid certificate {ex.Message}");
+                    return;
+                }
+            }
+
+            client.MessageReceived += (o, args) =>
+            {
+                if (CompareTopics(SearchTopic, args.Topic))
+                {
+                    UpdateTopicTags(args.Topic, args.Payload);
+                }
+
+                UpdateData(args.Topic, args.Payload);
+            };
+
+            try
+            {
+                client.Start();
+            }
+            catch (InvalidOperationException)
+            {
+                log.Add($"{DateTime.Now}: Unable to start client {ClientSub}");
                 return;
             }
 
@@ -599,92 +646,6 @@ namespace MQTTClient
             clientSubscriber = null;
 
             IsConnected = false;
-        }
-
-        private async Task<IManagedMqttClient> StartClientSubscriber(MqttFactory factory, string server, int port)
-        {
-
-            var tlsOptions = new MqttClientTlsOptions
-            {
-                UseTls = this.UseTls,
-                IgnoreCertificateChainErrors = true,
-                IgnoreCertificateRevocationErrors = true,
-                AllowUntrustedCertificates = true,
-            };
-
-            try
-            {
-                if (UseTls)
-                {
-                    var certs = GetCerts();
-                    tlsOptions.Certificates = certs;
-                }
-            }
-            catch (Exception ex)
-            {
-                log.Add($"{DateTime.Now}: Invalid certificate: {ex.Message}");
-
-                return null;
-            }
-
-            var options = new MqttClientOptions
-            {
-                ClientId = ClientSub,
-                ProtocolVersion = MqttProtocolVersion.V311,
-                ChannelOptions = new MqttClientTcpOptions
-                {
-                    Server = server,
-                    Port = port,
-                    TlsOptions = tlsOptions
-                }
-            };
-
-            if (options.ChannelOptions == null)
-            {
-                throw new InvalidOperationException();
-            }
-
-            options.Credentials = new MqttClientCredentials
-            {
-                Username = UseAuth ? Username : "username",
-                Password = UseAuth ? Encoding.UTF8.GetBytes(pwBox.Password) : Encoding.UTF8.GetBytes("password")
-            };
-
-            options.CleanSession = true;
-            options.KeepAlivePeriod = TimeSpan.FromSeconds(5);
-
-
-            IManagedMqttClient managedMqttClientSubscriber = factory.CreateManagedMqttClient();
-            managedMqttClientSubscriber.ConnectedHandler = new MqttClientConnectedHandlerDelegate(Client_OnSubscriberConnected);
-            managedMqttClientSubscriber.DisconnectedHandler = new MqttClientDisconnectedHandlerDelegate(Client_OnSubscriberDisconnected);
-            managedMqttClientSubscriber.ApplicationMessageReceivedHandler = new MqttApplicationMessageReceivedHandlerDelegate(Client_OnSubscriberMessageReceived);
-            await managedMqttClientSubscriber.StartAsync(
-                new ManagedMqttClientOptions
-                {
-                    ClientOptions = options
-                });
-
-            return managedMqttClientSubscriber;
-        }
-
-        private void Client_OnSubscriberConnected(MqttClientConnectedEventArgs e)
-        {
-           log.Add($"{ClientSub} Connected");
-        }
-
-        private void Client_OnSubscriberDisconnected(MqttClientDisconnectedEventArgs e)
-        {
-            log.Add($"{ClientSub} Disconnected");
-        }
-
-        private void Client_OnSubscriberMessageReceived(MqttApplicationMessageReceivedEventArgs e)
-        {
-            if (CompareTopics(SearchTopic, e.ApplicationMessage.Topic))
-            {
-                UpdateTopicTags(e.ApplicationMessage.Topic, e.ApplicationMessage.ConvertPayloadToString());
-            }
-
-            UpdateData(e.ApplicationMessage.Topic, e.ApplicationMessage.ConvertPayloadToString());
         }
 
         private void Log_Updated(object sender, Log.LogEventArgs e)

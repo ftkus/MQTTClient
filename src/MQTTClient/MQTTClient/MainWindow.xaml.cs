@@ -27,17 +27,16 @@ using MQTTnet.Protocol;
 using MQTTnet.Server;
 using System.Management;
 using System.Collections.ObjectModel;
+using System.Globalization;
+using System.IO;
 using System.Timers;
 
 using System.Security.Cryptography.X509Certificates;
-
+using CsvHelper;
 using MQTTClient.Data;
 using MQTTClient.Properties;
 using Newtonsoft.Json;
 
-using OxyPlot;
-using OxyPlot.Series;
-using DataPoint = OxyPlot.DataPoint;
 using MessageBox = System.Windows.Forms.MessageBox;
 
 namespace MQTTClient
@@ -707,6 +706,9 @@ namespace MQTTClient
             }
 
             influxDB = new DataBase(DBAddress, DBPort, DBToken);
+            influxDB.QueryComplete += InfluxDb_OnQueryComplete;
+            influxDB.QueryException += InfluxDb_OnQueryException;
+            influxDB.QuerySuccess += InfluxDb_OnQuerySuccess;
 
             Properties.Settings.Default.DBAddress = DBAddress;
             Properties.Settings.Default.DBPort = DBPort;
@@ -718,12 +720,32 @@ namespace MQTTClient
             IsDBConnected = true;
         }
 
+        private void InfluxDb_OnQuerySuccess(object sender, DataBase.QuerySuccessEventArgs e)
+        {
+            Dispatcher?.Invoke(() => { MessageBox.Show("Query Successful!"); });
+        }
+
+        private void InfluxDb_OnQueryException(object sender, DataBase.QueryExceptionEventArgs e)
+        {
+            Dispatcher?.Invoke(() => { MessageBox.Show(e.Exception.Message); });
+        }
+
+        private void InfluxDb_OnQueryComplete(object sender, DataBase.QueryCompleteEventArgs e)
+        {
+            Dispatcher?.Invoke(() => { MessageBox.Show(e.Result.ToString()); });
+        }
+
         private void ButDBDisconnect_OnClick(object sender, RoutedEventArgs e)
         {
             influxDB?.Diconnect();
             influxDB = null;
 
             IsDBConnected = false;
+        }
+
+        private void DbQuery_OnClick(object sender, RoutedEventArgs e)
+        {
+            influxDB?.Query(DBBucket, DBOrg);
         }
     }
 }

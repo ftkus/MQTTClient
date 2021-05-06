@@ -4,14 +4,13 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:MQTTClient"
-        xmlns:oxy="http://oxyplot.org/wpf"
         x:Name="win"
         DataContext="{Binding ElementName=win}"
         mc:Ignorable="d"
         Title="MQTT Client" 
         MinHeight="750" 
         MinWidth="400"
-        Height="750" 
+        Height="1000" 
         Width="800">
 
     <Window.Resources>
@@ -289,10 +288,11 @@
             </Grid>
         </GroupBox>
 
-        <GroupBox Grid.Row="2"
-                  Header="Data"
+        <TabControl  Grid.Row="2">
+            <TabItem Header="Write">
+                <GroupBox Header="Data"
                   IsEnabled="{Binding IsConnected}">
-            <Grid>
+                    <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="2*"/>
                     <ColumnDefinition Width="3*"/>
@@ -366,7 +366,22 @@
                 </GroupBox>
 
             </Grid>
-        </GroupBox>
+                </GroupBox>
+            </TabItem>
+            <TabItem Header="Read">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Button Content="Query"
+                            Click="DbQuery_OnClick"/>
+
+                </Grid>
+            </TabItem>
+
+        </TabControl>
+
 
         <GroupBox Grid.Row="3"
                   Header="Log">

@@ -2,12 +2,40 @@
 using System.Net.Http.Headers;
 using InfluxDB.Client;
 using InfluxDB.Client.Api.Domain;
+using InfluxDB.Client.Core.Flux.Domain;
 using InfluxDB.Client.Writes;
 
 namespace MQTTClient
 {
     public class DataBase
     {
+        public class QueryCompleteEventArgs : EventArgs
+        {
+            public QueryCompleteEventArgs(FluxRecord result)
+            {
+                Result = result;
+            }
+
+            public FluxRecord Result { get; }
+        }
+
+        public class QueryExceptionEventArgs : EventArgs
+        {
+            public QueryExceptionEventArgs(Exception exception)
+            {
+                Exception = exception;
+            }
+
+            public Exception Exception { get; }
+        }
+
+        public class QuerySuccessEventArgs : EventArgs { }
+        
+
+        public event EventHandler<QueryCompleteEventArgs> QueryComplete;
+        public event EventHandler<QueryExceptionEventArgs> QueryException;
+        public event EventHandler<QuerySuccessEventArgs> QuerySuccess;
+
         private InfluxDBClient client;
         private readonly string url;
 
@@ -35,6 +63,26 @@ namespace MQTTClient
             {
                 writeApi.WritePoint(bucket, org, point);
             }
+        }
+
+        public async void Query(string bucket, string org)
+        {
+            string flux = $"from(bucket:\"{bucket}\") |> range(start: 0)";
+
+            var queryApi = client.GetQueryApi();
+
+            await queryApi.QueryAsync(flux, org, (cancellable, record) =>
+                {
+                    QueryComplete?.Invoke(this, new QueryCompleteEventArgs(record));
+                },
+                exception =>
+                {
+                    QueryException?.Invoke(this, new QueryExceptionEventArgs(exception));
+                },
+                () =>
+                {
+                    QuerySuccess?.Invoke(this, new QuerySuccessEventArgs());
+                });
         }
 
         public void Diconnect()

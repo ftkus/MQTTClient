@@ -27,16 +27,17 @@ using MQTTnet.Protocol;
 using MQTTnet.Server;
 using System.Management;
 using System.Collections.ObjectModel;
+using System.Globalization;
+using System.IO;
 using System.Timers;
 
 using System.Security.Cryptography.X509Certificates;
-
+using CsvHelper;
 using MQTTClient.Data;
+using MQTTClient.Properties;
 using Newtonsoft.Json;
 
-using OxyPlot;
-using OxyPlot.Series;
-using DataPoint = OxyPlot.DataPoint;
+using MessageBox = System.Windows.Forms.MessageBox;
 
 namespace MQTTClient
 {
@@ -48,36 +49,32 @@ namespace MQTTClient
         public event PropertyChangedEventHandler PropertyChanged;
 
         private bool isConnected;
-
-        private string server;
-
-        private int port;
-
+        private bool isDBConnected;
         private bool useTls;
-
         private bool useAuth;
-
+        private int port;
+        private int dbPort;
         private string username;
-
         private string certPath;
-
-        private IManagedMqttClient clientSubscriber;
-
+        private string server;
+        private string logContent;
+        private string clientName;
+        private string searchTopic;
+        private string dbAddress;
+        private string dbOrg;
+        private string dbBucket;
+        private string dbToken;
+        private MqttClient client;
         private Log log;
 
-        private string logContent;
-
-        private string clientName;
-
-        private string searchTopic;
-
         private ObservableCollection<TagTopicViewModel> tags;
-
         private ObservableCollection<TagValueViewModel> tagValueViewModels;
 
         private TagTopicViewModel selectedTag;
 
         private DateTime? firstTimeStamp = null;
+
+        private DataBase influxDB;
 
         public MainWindow()
         {
@@ -96,20 +93,13 @@ namespace MQTTClient
             UseTls = Properties.Settings.Default.UseTls;
             UseAuth = Properties.Settings.Default.UseAuth;
             Username = Properties.Settings.Default.Username;
-
-            MyModel = new PlotModel { Title = "Data Preview" };
+            DBAddress = Properties.Settings.Default.DBAddress;
+            DBPort = Properties.Settings.Default.DBPort;
+            DBOrg = Properties.Settings.Default.DBOrg;
+            DBBucket = Properties.Settings.Default.DBBucket;
+            DBToken = Properties.Settings.Default.DBToken;
 
             InitializeComponent();
-
-            Timer chartTimer = new Timer();
-            chartTimer.Elapsed += ChartTimer_OnElapsed;
-            chartTimer.Interval = 5000;
-            chartTimer.Start();
-        }
-
-        private void ChartTimer_OnElapsed(object sender, ElapsedEventArgs e)
-        {
-            Dispatcher?.Invoke(() => plot.InvalidatePlot());
         }
 
         public string LogContent
@@ -141,6 +131,87 @@ namespace MQTTClient
                 clientName = value;
 
                 NotifyPropertyChanged(nameof(ClientName));
+            }
+        }
+
+        public string DBAddress
+        {
+            get
+            {
+                return dbAddress;
+            }
+            set
+            {
+                if (Equals(value, dbAddress)) { return; }
+
+                dbAddress = value;
+
+                NotifyPropertyChanged(nameof(DBAddress));
+            }
+        }
+
+        
+        public int DBPort
+        {
+            get
+            {
+                return dbPort;
+            }
+            set
+            {
+                if (Equals(value, dbPort)) { return; }
+
+                dbPort = value;
+
+                NotifyPropertyChanged(nameof(DBPort));
+            }
+        }
+
+        public string DBToken
+        {
+            get
+            {
+                return dbToken;
+            }
+            set
+            {
+                if (Equals(value, dbToken)) { return; }
+
+                dbToken = value;
+
+                NotifyPropertyChanged(nameof(DBToken));
+            }
+        }
+
+        public string DBOrg
+        {
+            get
+            {
+                return dbOrg;
+            }
+            set
+            {
+                if (Equals(value, dbOrg)) { return; }
+
+                dbOrg = value;
+
+                NotifyPropertyChanged(nameof(DBOrg));
+            }
+        }
+
+        public string DBBucket
+        {
+            get
+            {
+                return dbBucket;
+            }
+            set
+            {
+                if (Equals(value, dbBucket)) { return; }
+
+                dbBucket = value;
+
+                NotifyPropertyChanged(nameof(DBBucket));
             }
         }
 
@@ -189,6 +260,22 @@ namespace MQTTClient
                 isConnected = value;
 
                 NotifyPropertyChanged(nameof(IsConnected));
+            }
+        }
+
+        public bool IsDBConnected
+        {
+            get
+            {
+                return isDBConnected;
+            }
+            set
+            {
+                if (Equals(value, isDBConnected)) { return; }
+
+                isDBConnected = value;
+
+                NotifyPropertyChanged(nameof(IsDBConnected));
             }
         }
 
@@ -326,8 +413,6 @@ namespace MQTTClient
 
         public string ClientSub => $"{ClientName}_sub";
 
-        public PlotModel MyModel { get; private set; }
-
         private string GetClientName()
         {
             string cpuInfo = string.Empty;
@@ -415,17 +500,21 @@ namespace MQTTClient
                                 }
 
                                 tvvm.Update(tag.Value, msg.Timestamp);
-
-                                foreach (var s in MyModel.Series)
-                                {
-                                    if (s.Tag == tvvm)
-                                    {
-                                        ((LineSeries) s).Points.Add(new DataPoint((msg.Timestamp - firstTimeStamp.Value).TotalSeconds, tag.Value));
-                                    }
-                                }
                             }
                         }
                     }
+                }
+
+                if (IsDBConnected)
+                {
+                    var pointData = influxDB.GetPointData(topic, msg.Timestamp);
+
+                    foreach (var tag in msg.Tags)
+                    {
+                        pointData = influxDB.AppendFieldValue(pointData, tag.Key, tag.Value);
+                    }
+
+                    influxDB.Write(DBBucket, DBOrg, pointData);
                 }
             }
         }
@@ -436,7 +525,7 @@ namespace MQTTClient
             {
                 if (!TagValueViewModels.Any(t => t.Topic == oldTopic))
                 {
-                    await clientSubscriber?.UnsubscribeAsync(oldTopic);
+                    client.Unsubscribe(oldTopic);
 
                     log.Add($"{DateTime.Now}: Unsubscribed from topic {oldTopic}");
                 }
@@ -446,7 +535,7 @@ namespace MQTTClient
             {
                 if (!TagValueViewModels.Any(t => t.Topic == SearchTopic))
                 {
-                    await clientSubscriber?.SubscribeAsync(SearchTopic);
+                    client.Subscribe(SearchTopic);
 
                     log.Add($"{DateTime.Now}: Subscribed to topic {SearchTopic}");
                 }
@@ -469,17 +558,7 @@ namespace MQTTClient
 
             if (TagValueViewModels.Any(t => t.Tag == tag && t.Topic == topic)) { return; }
 
-            var tvvm = new TagValueViewModel()
-            {
-                Tag = tag,
-                Topic = topic,
-            };
-
-            var ls = new LineSeries();
-            ls.Tag = tvvm;
-            ls.Title = tag;
-
-            MyModel.Series.Add(ls);
+            var tvvm = new TagValueViewModel(tag, topic);
 
             TagValueViewModels.Add(tvvm);
 
@@ -495,10 +574,55 @@ namespace MQTTClient
         {
             var mqttFactory = new MqttFactory();
 
-            clientSubscriber = StartClientSubscriber(mqttFactory, Server, Port).Result;
-
-            if (clientSubscriber is null)
+            if (string.IsNullOrWhiteSpace(server))
             {
+                MessageBox.Show("Invalid Mqtt Server");
+                return;
+            }
+
+            if (port < 1024 || port > 65535)
+            {
+                MessageBox.Show("Invalid Mqtt Port");
+                return;
+            }
+
+            client = new MqttClient(ClientSub, server, port, log);
+
+            if (UseAuth)
+            {
+                client.UseAuthentication(Username, pwBox.Password);
+            }
+
+            if (UseTls)
+            {
+                try
+                {
+                    client.UseTls(GetCerts());
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Invalid certificate {ex.Message}");
+                    return;
+                }
+            }
+
+            client.MessageReceived += (o, args) =>
+            {
+                if (CompareTopics(SearchTopic, args.Topic))
+                {
+                    UpdateTopicTags(args.Topic, args.Payload);
+                }
+
+                UpdateData(args.Topic, args.Payload);
+            };
+
+            try
+            {
+                client.Start();
+            }
+            catch (InvalidOperationException)
+            {
+                log.Add($"{DateTime.Now}: Unable to start client {ClientSub}");
                 return;
             }
 
@@ -515,97 +639,11 @@ namespace MQTTClient
 
         private async void ButDisconnect_OnClick(object sender, RoutedEventArgs e)
         {
-            await clientSubscriber?.StopAsync();
+            client.Stop();
 
-            clientSubscriber = null;
+            client = null;
 
             IsConnected = false;
-        }
-
-        private async Task<IManagedMqttClient> StartClientSubscriber(MqttFactory factory, string server, int port)
-        {
-
-            var tlsOptions = new MqttClientTlsOptions
-            {
-                UseTls = this.UseTls,
-                IgnoreCertificateChainErrors = true,
-                IgnoreCertificateRevocationErrors = true,
-                AllowUntrustedCertificates = true,
-            };
-
-            try
-            {
-                if (UseTls)
-                {
-                    var certs = GetCerts();
-                    tlsOptions.Certificates = certs;
-                }
-            }
-            catch (Exception ex)
-            {
-                log.Add($"{DateTime.Now}: Invalid certificate: {ex.Message}");
-
-                return null;
-            }
-
-            var options = new MqttClientOptions
-            {
-                ClientId = ClientSub,
-                ProtocolVersion = MqttProtocolVersion.V311,
-                ChannelOptions = new MqttClientTcpOptions
-                {
-                    Server = server,
-                    Port = port,
-                    TlsOptions = tlsOptions
-                }
-            };
-
-            if (options.ChannelOptions == null)
-            {
-                throw new InvalidOperationException();
-            }
-
-            options.Credentials = new MqttClientCredentials
-            {
-                Username = UseAuth ? Username : "username",
-                Password = UseAuth ? Encoding.UTF8.GetBytes(pwBox.Password) : Encoding.UTF8.GetBytes("password")
-            };
-
-            options.CleanSession = true;
-            options.KeepAlivePeriod = TimeSpan.FromSeconds(5);
-
-
-            IManagedMqttClient managedMqttClientSubscriber = factory.CreateManagedMqttClient();
-            managedMqttClientSubscriber.ConnectedHandler = new MqttClientConnectedHandlerDelegate(Client_OnSubscriberConnected);
-            managedMqttClientSubscriber.DisconnectedHandler = new MqttClientDisconnectedHandlerDelegate(Client_OnSubscriberDisconnected);
-            managedMqttClientSubscriber.ApplicationMessageReceivedHandler = new MqttApplicationMessageReceivedHandlerDelegate(Client_OnSubscriberMessageReceived);
-            await managedMqttClientSubscriber.StartAsync(
-                new ManagedMqttClientOptions
-                {
-                    ClientOptions = options
-                });
-
-            return managedMqttClientSubscriber;
-        }
-
-        private void Client_OnSubscriberConnected(MqttClientConnectedEventArgs e)
-        {
-           log.Add($"{ClientSub} Connected");
-        }
-
-        private void Client_OnSubscriberDisconnected(MqttClientDisconnectedEventArgs e)
-        {
-            log.Add($"{ClientSub} Disconnected");
-        }
-
-        private void Client_OnSubscriberMessageReceived(MqttApplicationMessageReceivedEventArgs e)
-        {
-            if (CompareTopics(SearchTopic, e.ApplicationMessage.Topic))
-            {
-                UpdateTopicTags(e.ApplicationMessage.Topic, e.ApplicationMessage.ConvertPayloadToString());
-            }
-
-            UpdateData(e.ApplicationMessage.Topic, e.ApplicationMessage.ConvertPayloadToString());
         }
 
         private void Log_Updated(object sender, Log.LogEventArgs e)
@@ -633,6 +671,81 @@ namespace MQTTClient
             if (SelectedTag is null) { return; }
 
             AddTag(SelectedTag.Topic, SelectedTag.Tag);
+        }
+
+        private void ButDBConnect_OnClick(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(DBAddress))
+            {
+                MessageBox.Show("Invalid InfluxDB parameters");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(DBOrg))
+            {
+                MessageBox.Show("Invalid InfluxDB parameters");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(DBBucket))
+            {
+                MessageBox.Show("Invalid InfluxDB parameters");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(DBToken))
+            {
+                MessageBox.Show("Invalid InfluxDB parameters");
+                return;
+            }
+
+            if (DBPort < 1024 || DBPort > 65535)
+            {
+                MessageBox.Show("Invalid InfluxDB parameters");
+                return;
+            }
+
+            influxDB = new DataBase(DBAddress, DBPort, DBToken);
+            influxDB.QueryComplete += InfluxDb_OnQueryComplete;
+            influxDB.QueryException += InfluxDb_OnQueryException;
+            influxDB.QuerySuccess += InfluxDb_OnQuerySuccess;
+
+            Properties.Settings.Default.DBAddress = DBAddress;
+            Properties.Settings.Default.DBPort = DBPort;
+            Properties.Settings.Default.DBBucket = DBBucket;
+            Properties.Settings.Default.DBOrg = DBOrg;
+            Properties.Settings.Default.DBToken = DBToken;
+            Properties.Settings.Default.Save();
+
+            IsDBConnected = true;
+        }
+
+        private void InfluxDb_OnQuerySuccess(object sender, DataBase.QuerySuccessEventArgs e)
+        {
+            Dispatcher?.Invoke(() => { MessageBox.Show("Query Successful!"); });
+        }
+
+        private void InfluxDb_OnQueryException(object sender, DataBase.QueryExceptionEventArgs e)
+        {
+            Dispatcher?.Invoke(() => { MessageBox.Show(e.Exception.Message); });
+        }
+
+        private void InfluxDb_OnQueryComplete(object sender, DataBase.QueryCompleteEventArgs e)
+        {
+            Dispatcher?.Invoke(() => { MessageBox.Show(e.Result.ToString()); });
+        }
+
+        private void ButDBDisconnect_OnClick(object sender, RoutedEventArgs e)
+        {
+            influxDB?.Diconnect();
+            influxDB = null;
+
+            IsDBConnected = false;
+        }
+
+        private void DbQuery_OnClick(object sender, RoutedEventArgs e)
+        {
+            influxDB?.Query(DBBucket, DBOrg);
         }
     }
 }

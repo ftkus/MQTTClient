@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace MQTTClient
 {
-    internal class Log
+    public class Log
     {
         internal class LogEventArgs : EventArgs
         {

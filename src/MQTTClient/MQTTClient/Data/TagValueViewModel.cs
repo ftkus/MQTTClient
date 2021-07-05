@@ -17,7 +17,12 @@ namespace MQTTClient.Data
 
         private double value;
 
-        public DataSet DataSet { get; } = new DataSet();
+        public TagValueViewModel(string tag, string topic)
+        {
+            Tag = tag;
+            Topic = topic;
+            Display = System.IO.Path.Combine(topic, tag);
+        }
 
         public string Tag
         {
@@ -67,17 +72,12 @@ namespace MQTTClient.Data
             }
         }
 
+        public string Display { get; }
+
         public string Topic { get; set; }
 
         public void Update(double value, DateTime timestamp)
         {
-            DataSet.Points.Add(new DataPoint(timestamp, value));
-
-            if (DataSet.Points.Count > 500)
-            {
-                DataSet.Points.RemoveAt(0);
-            }
-
             Timestamp = timestamp;
             Value = value;
         }

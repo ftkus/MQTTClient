@@ -8,7 +8,7 @@ using Newtonsoft.Json;
 namespace MQTTClient.Data
 {
     [JsonObject(MemberSerialization.OptIn)]
-    internal class Message
+    public class Message
     {
         [JsonProperty("connected")]
         public bool IsConnected { get; set; }
